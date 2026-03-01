@@ -1,0 +1,2401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sigint</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>">
+<style>
+/* ══════════════════════════════════════════════════════════
+   SIGINT — Radio Intelligence Dashboard
+   Design: Linear + Bloomberg Terminal + SDR++
+   ══════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-0: #06060a;
+  --bg-1: #0c0c14;
+  --bg-2: #12121e;
+  --bg-3: #1a1a2a;
+  --bg-hover: #1e1e30;
+  --border: rgba(255,255,255,0.06);
+  --border-bright: rgba(255,255,255,0.1);
+  --text-0: #f0f0f5;
+  --text-1: #b0b0c0;
+  --text-2: #707088;
+  --text-3: #484860;
+  --accent: #22c55e;
+  --accent-dim: rgba(34,197,94,0.15);
+  --accent-glow: rgba(34,197,94,0.3);
+  --blue: #3b82f6;
+  --blue-dim: rgba(59,130,246,0.12);
+  --cyan: #06b6d4;
+  --cyan-dim: rgba(6,182,212,0.12);
+  --amber: #f59e0b;
+  --amber-dim: rgba(245,158,11,0.12);
+  --rose: #f43f5e;
+  --rose-dim: rgba(244,63,94,0.12);
+  --violet: #8b5cf6;
+  --violet-dim: rgba(139,92,246,0.12);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --transition: 150ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('https://fonts.gstatic.com/s/inter/v18/UcCo3FwrK3iLTcviYwY.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg-0);
+  color: var(--text-0);
+  overflow: hidden;
+  height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg-3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+/* ── Layout ── */
+.app {
+  display: grid;
+  grid-template-rows: 48px 1fr;
+  height: 100vh;
+  gap: 0;
+}
+
+/* ── Top Bar ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-1);
+  gap: 16px;
+  z-index: 100;
+  -webkit-app-region: drag;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  font-size: 14px;
+  letter-spacing: -0.02em;
+  color: var(--text-0);
+  user-select: none;
+  -webkit-app-region: no-drag;
+}
+
+.logo-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--accent) 0%, #059669 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.logo-icon svg { width: 14px; height: 14px; stroke: white; fill: none; stroke-width: 2; }
+
+.topbar-sep { width: 1px; height: 20px; background: var(--border-bright); }
+
+.conn-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  -webkit-app-region: no-drag;
+}
+
+.conn-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--rose);
+  transition: background var(--transition);
+}
+
+.conn-dot.live {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 6px var(--accent-glow); }
+  50% { box-shadow: 0 0 14px var(--accent-glow); }
+}
+
+.freq-display {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+  -webkit-app-region: no-drag;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  transition: all var(--transition);
+}
+
+.freq-display:hover { background: var(--bg-2); border-color: var(--border-bright); }
+.freq-display .unit { font-size: 11px; color: var(--text-2); font-weight: 500; margin-left: 2px; }
+
+.mode-select {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--cyan);
+  background: var(--bg-2);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-sm);
+  padding: 3px 24px 3px 8px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2306b6d4' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  transition: all var(--transition);
+  -webkit-app-region: no-drag;
+}
+.mode-select:hover { background: var(--bg-3); border-color: rgba(6,182,212,0.3); }
+.mode-select:focus { border-color: var(--cyan); box-shadow: 0 0 8px rgba(6,182,212,0.2); }
+.mode-select option { background: var(--bg-1); color: var(--text-0); }
+
+.freq-input {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--bg-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  width: 130px;
+  outline: none;
+  box-shadow: 0 0 8px var(--accent-glow);
+  letter-spacing: -0.02em;
+}
+.freq-input::selection { background: var(--accent-dim); }
+
+.topbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
+}
+
+.tb-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-bright);
+  background: var(--bg-2);
+  color: var(--text-1);
+  font-size: 11.5px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all var(--transition);
+  user-select: none;
+}
+
+.tb-btn:hover { background: var(--bg-3); color: var(--text-0); border-color: rgba(255,255,255,0.15); }
+.tb-btn.active { background: var(--accent-dim); color: var(--accent); border-color: rgba(34,197,94,0.3); }
+.tb-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+.clock {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-2);
+  font-weight: 500;
+  min-width: 60px;
+  text-align: right;
+}
+
+/* ── Main Area ── */
+.main {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+}
+
+/* ── Left Panel ── */
+.left-panel {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+}
+
+/* ── Spectrum + Waterfall ── */
+.spectrum-container {
+  position: relative;
+  height: 100%;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-1);
+  overflow: hidden;
+}
+
+.spectrum-canvas, .waterfall-canvas {
+  position: absolute;
+  width: 100%;
+  left: 0;
+}
+
+.spectrum-canvas { top: 0; height: 40%; }
+.waterfall-canvas { top: 40%; height: 60%; }
+
+.spectrum-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.spectrum-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+  background: rgba(6,6,10,0.7);
+  padding: 3px 7px;
+  border-radius: 4px;
+  backdrop-filter: blur(8px);
+}
+
+.signal-meter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(6,6,10,0.75);
+  padding: 4px 8px;
+  border-radius: 5px;
+  backdrop-filter: blur(8px);
+}
+
+.signal-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.5px;
+  height: 14px;
+}
+
+.signal-bar {
+  width: 3px;
+  border-radius: 1px;
+  background: var(--bg-3);
+  transition: background 300ms, height 300ms;
+}
+
+.signal-bar.on { background: var(--accent); }
+
+.signal-db {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+/* ── Event Stream ── */
+.stream-container {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: opacity 200ms;
+}
+.left-panel.stream-hidden .stream-container { display: none; }
+.left-panel.stream-hidden { grid-template-rows: 1fr; }
+.left-panel.stream-hidden .spectrum-container { border-bottom: none; }
+
+.stream-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-1);
+  flex-shrink: 0;
+}
+
+.stream-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stream-title .live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.filter-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.filter-tab {
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-2);
+  border-radius: 4px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: var(--font);
+  transition: all var(--transition);
+  user-select: none;
+}
+
+.filter-tab:hover { color: var(--text-1); }
+.filter-tab.active { background: var(--bg-3); color: var(--text-0); }
+
+.stream-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.evt {
+  display: grid;
+  grid-template-columns: 72px 72px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  font-size: 12px;
+  transition: background var(--transition);
+  cursor: default;
+  min-height: 34px;
+}
+
+.evt:hover { background: var(--bg-hover); }
+
+.evt-ts {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-3);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+
+.badge-signal   { background: var(--accent-dim); color: var(--accent); }
+.badge-call     { background: var(--blue-dim);   color: var(--blue); }
+.badge-release  { background: var(--rose-dim);   color: var(--rose); }
+.badge-sds      { background: var(--violet-dim); color: var(--violet); }
+.badge-voice    { background: var(--amber-dim);  color: var(--amber); }
+.badge-data     { background: var(--cyan-dim);   color: var(--cyan); }
+.badge-system   { background: rgba(255,255,255,0.05); color: var(--text-2); }
+
+.evt-body {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.evt-body .hl { color: var(--text-0); font-weight: 600; }
+.evt-body .dim { color: var(--text-3); }
+.evt-body .freq { color: var(--cyan); }
+.evt-body .ssi { color: var(--amber); }
+
+.evt-meta {
+  font-size: 10px;
+  color: var(--text-3);
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: var(--text-3);
+}
+
+.empty-state svg { width: 32px; height: 32px; stroke: var(--text-3); fill: none; stroke-width: 1.5; opacity: 0.5; }
+.empty-state p { font-size: 13px; }
+
+/* ── Right Panel ── */
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: var(--bg-1);
+}
+
+.panel-section {
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+.panel-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  background: var(--bg-3);
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+/* ── Stat Cards ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.stat-card {
+  background: var(--bg-1);
+  padding: 12px 14px;
+}
+
+.stat-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.stat-value.green { color: var(--accent); }
+.stat-value.blue { color: var(--blue); }
+.stat-value.amber { color: var(--amber); }
+.stat-value.violet { color: var(--violet); }
+
+.stat-delta {
+  font-size: 10px;
+  font-family: var(--mono);
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.stat-delta.up { color: var(--accent); }
+.stat-delta.down { color: var(--rose); }
+
+/* ── Network Info ── */
+.net-rows { padding: 4px 0; }
+
+.net-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 14px;
+  font-size: 12px;
+}
+
+.net-row:hover { background: rgba(255,255,255,0.02); }
+
+.net-key {
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.net-val {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-0);
+  font-weight: 500;
+}
+
+.net-val.unknown { color: var(--text-3); font-style: italic; font-weight: 400; }
+
+/* ── Call List ── */
+.call-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.025);
+  transition: background var(--transition);
+}
+
+.call-item:hover { background: var(--bg-hover); }
+
+.call-direction {
+  width: 4px;
+  height: 28px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.call-direction.active { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+.call-direction.ended { background: var(--bg-3); }
+
+.call-info { flex: 1; min-width: 0; }
+
+.call-parties {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.call-parties .arrow { color: var(--text-3); margin: 0 4px; font-weight: 400; }
+
+.call-sub {
+  font-size: 10px;
+  color: var(--text-3);
+  margin-top: 1px;
+}
+
+.call-sub .enc { color: var(--rose); font-weight: 600; }
+
+.call-time {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+/* ── SDS Messages ── */
+.sds-item {
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.025);
+  transition: background var(--transition);
+}
+
+.sds-item:hover { background: var(--bg-hover); }
+
+.sds-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+
+.sds-from {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--violet);
+}
+
+.sds-time {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-3);
+}
+
+.sds-body {
+  font-size: 12px;
+  color: var(--text-1);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* ── Audio Player ── */
+.audio-player {
+  padding: 12px 14px;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+
+.player-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.player-wave {
+  height: 32px;
+  background: var(--bg-0);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.player-wave canvas { width: 100%; height: 100%; }
+
+.player-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.play-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+
+.play-btn:hover { transform: scale(1.08); box-shadow: 0 0 16px var(--accent-glow); }
+.play-btn svg { width: 12px; height: 12px; fill: white; stroke: none; }
+
+.player-time {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.player-track {
+  flex: 1;
+  height: 3px;
+  background: var(--bg-3);
+  border-radius: 2px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.player-progress {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  border-radius: 2px;
+  transition: width 100ms linear;
+}
+
+.player-file {
+  font-size: 11px;
+  color: var(--text-2);
+  font-family: var(--mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* ── Recordings List ── */
+.rec-list { max-height: 120px; overflow-y: auto; }
+
+.rec-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.rec-item:hover { background: var(--bg-hover); }
+
+.rec-icon { color: var(--text-3); flex-shrink: 0; }
+.rec-icon svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+.rec-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-1);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rec-size {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+/* ── Animations ── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.evt { animation: fade-in 200ms ease-out; }
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.call-item, .sds-item { animation: slide-in 200ms ease-out; }
+
+/* ── Settings Panel ── */
+.settings-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(12px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 250ms;
+}
+.settings-overlay.open { opacity: 1; pointer-events: all; }
+
+.settings-panel {
+  width: min(740px, 92vw); height: min(80vh, 640px);
+  background: var(--bg-1); border: 1px solid var(--border-bright);
+  border-radius: 16px; display: grid; grid-template-columns: 180px 1fr;
+  overflow: hidden; transform: scale(0.96) translateY(10px);
+  transition: transform 250ms cubic-bezier(0.16,1,0.3,1);
+  box-shadow: 0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+}
+.settings-overlay.open .settings-panel { transform: scale(1) translateY(0); }
+
+.settings-nav {
+  background: var(--bg-0); border-right: 1px solid var(--border);
+  padding: 16px 0; display: flex; flex-direction: column; gap: 2px;
+}
+.settings-nav-title {
+  font-size: 11px; font-weight: 700; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 0 16px 12px; user-select: none;
+}
+.settings-nav-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px; font-size: 12.5px; font-weight: 500;
+  color: var(--text-2); background: none; border: none;
+  cursor: pointer; font-family: var(--font); text-align: left;
+  transition: all var(--transition);
+}
+.settings-nav-item:hover { color: var(--text-1); background: var(--bg-hover); }
+.settings-nav-item.active {
+  color: var(--text-0); background: var(--bg-2);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.settings-content { display: flex; flex-direction: column; overflow: hidden; }
+
+.settings-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.settings-section-title {
+  font-size: 15px; font-weight: 650; color: var(--text-0); letter-spacing: -0.01em;
+}
+.settings-close {
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg-2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-2); transition: all var(--transition);
+}
+.settings-close:hover { background: var(--bg-3); color: var(--text-0); }
+.settings-close svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+.settings-body { flex: 1; overflow-y: auto; padding: 4px 0; }
+.settings-section { display: none; }
+.settings-section.active { display: block; }
+
+.set-group-label {
+  font-size: 10px; font-weight: 600; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.05em; padding: 16px 20px 6px;
+}
+.set-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 20px; min-height: 44px; transition: background var(--transition);
+}
+.set-row:hover { background: rgba(255,255,255,0.015); }
+.set-label { flex: 1; min-width: 0; }
+.set-name { font-size: 12.5px; font-weight: 500; color: var(--text-0); }
+.set-desc { font-size: 11px; color: var(--text-3); margin-top: 1px; line-height: 1.3; }
+.set-control { display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: 16px; }
+
+.set-input {
+  width: 120px; padding: 6px 10px;
+  background: var(--bg-2); border: 1px solid var(--border-bright);
+  border-radius: var(--radius-sm); color: var(--text-0);
+  font-family: var(--mono); font-size: 12px; outline: none;
+  transition: border-color var(--transition);
+}
+.set-input:focus { border-color: var(--accent); }
+.set-input::placeholder { color: var(--text-3); }
+.set-input-wide { width: 200px; }
+.set-unit { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+
+.set-select {
+  padding: 6px 28px 6px 10px;
+  background: var(--bg-2); border: 1px solid var(--border-bright);
+  border-radius: var(--radius-sm); color: var(--text-0);
+  font-family: var(--mono); font-size: 12px; outline: none; cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23707088' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+  transition: border-color var(--transition);
+}
+.set-select:focus { border-color: var(--accent); }
+
+.set-toggle {
+  position: relative; width: 36px; height: 20px;
+  background: var(--bg-3); border-radius: 10px;
+  cursor: pointer; transition: background 200ms;
+  border: none; flex-shrink: 0; padding: 0;
+}
+.set-toggle::after {
+  content: ''; position: absolute; width: 16px; height: 16px;
+  border-radius: 50%; background: var(--text-2);
+  top: 2px; left: 2px; transition: all 200ms;
+}
+.set-toggle.on { background: var(--accent); }
+.set-toggle.on::after { transform: translateX(16px); background: white; }
+
+.set-range {
+  -webkit-appearance: none; appearance: none;
+  width: 100px; height: 4px;
+  background: var(--bg-3); border-radius: 2px; outline: none; cursor: pointer;
+}
+.set-range::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--accent);
+  cursor: pointer; box-shadow: 0 0 6px var(--accent-glow);
+}
+.set-range::-moz-range-thumb {
+  width: 14px; height: 14px; border: none;
+  border-radius: 50%; background: var(--accent);
+  cursor: pointer; box-shadow: 0 0 6px var(--accent-glow);
+}
+
+.set-color {
+  width: 32px; height: 24px; padding: 0;
+  border: 1px solid var(--border-bright); border-radius: 4px;
+  cursor: pointer; background: none; outline: none;
+}
+.set-color::-webkit-color-swatch-wrapper { padding: 2px; }
+.set-color::-webkit-color-swatch { border: none; border-radius: 2px; }
+
+.settings-footer {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 20px; border-top: 1px solid var(--border); flex-shrink: 0;
+}
+.set-btn {
+  padding: 7px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-bright); background: var(--bg-2);
+  color: var(--text-1); font-size: 12px; font-weight: 500;
+  font-family: var(--font); cursor: pointer; transition: all var(--transition);
+}
+.set-btn:hover { background: var(--bg-3); color: var(--text-0); }
+.set-btn-primary {
+  padding: 7px 18px; border-radius: var(--radius-sm);
+  border: none; background: var(--accent);
+  color: white; font-size: 12px; font-weight: 600;
+  font-family: var(--font); cursor: pointer; transition: all var(--transition);
+}
+.set-btn-primary:hover { filter: brightness(1.1); box-shadow: 0 0 16px var(--accent-glow); }
+.set-btn-danger {
+  padding: 7px 14px; border-radius: var(--radius-sm);
+  border: 1px solid rgba(244,63,94,0.3); background: var(--rose-dim);
+  color: var(--rose); font-size: 12px; font-weight: 500;
+  font-family: var(--font); cursor: pointer; transition: all var(--transition);
+}
+.set-btn-danger:hover { background: rgba(244,63,94,0.2); border-color: rgba(244,63,94,0.5); }
+.set-sep { height: 1px; background: var(--border); margin: 8px 20px; }
+.tb-btn.tb-icon { padding: 6px; }
+
+@media (max-width: 640px) {
+  .settings-panel { grid-template-columns: 1fr; }
+  .settings-nav { display: none; }
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .main { grid-template-columns: 1fr; }
+  .right-panel { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ═══ Top Bar ═══ -->
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.348 14.651a3.75 3.75 0 010-5.303m5.304 0a3.75 3.75 0 010 5.303m-7.425 2.122a6.75 6.75 0 010-9.546m9.546 0a6.75 6.75 0 010 9.546M5.106 18.894c-3.808-3.808-3.808-9.98 0-13.789m13.788 0c3.808 3.808 3.808 9.981 0 13.79"/></svg>
+      </div>
+      Sigint
+    </div>
+
+    <div class="topbar-sep"></div>
+
+    <div class="conn-status">
+      <span class="conn-dot" id="conn-dot"></span>
+      <span id="conn-label">Offline</span>
+    </div>
+
+    <div class="topbar-sep"></div>
+
+    <div class="freq-display" id="freq-display" onclick="startFreqEdit()" title="Click to retune">
+      —<span class="unit">MHz</span>
+    </div>
+
+    <select class="mode-select" id="mode-select" onchange="changeMode(this.value)" title="Demodulation mode">
+      <option value="tetra">TETRA</option>
+      <option value="dmr">DMR</option>
+      <option value="p25">P25</option>
+      <option value="nxdn">NXDN</option>
+      <option value="dpmr">dPMR</option>
+      <option value="analog_fm">FM</option>
+      <option value="analog_am">AM</option>
+    </select>
+
+    <div class="topbar-controls">
+      <button class="tb-btn" id="btn-pause" onclick="togglePause()">
+        <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+        Pause
+      </button>
+      <button class="tb-btn" id="btn-clear" onclick="clearStream()">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        Clear
+      </button>
+      <button class="tb-btn" id="btn-record" onclick="toggleRecord()">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg>
+        Record
+      </button>
+    </div>
+
+    <div class="topbar-sep"></div>
+    <button class="tb-btn tb-icon" id="btn-settings" onclick="toggleSettings()" title="Settings (⌘,)">
+      <svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+    </button>
+
+    <div class="clock" id="clock">00:00:00</div>
+  </div>
+
+  <!-- ═══ Main Area ═══ -->
+  <div class="main">
+
+    <!-- ─── Left Panel ─── -->
+    <div class="left-panel">
+
+      <!-- Spectrum + Waterfall -->
+      <div class="spectrum-container">
+        <canvas class="spectrum-canvas" id="spectrum-canvas"></canvas>
+        <canvas class="waterfall-canvas" id="waterfall-canvas"></canvas>
+        <div class="spectrum-overlay">
+          <span class="spectrum-label">Spectrum</span>
+          <div class="signal-meter">
+            <div class="signal-bars" id="signal-bars">
+              <div class="signal-bar" style="height:4px"></div>
+              <div class="signal-bar" style="height:6px"></div>
+              <div class="signal-bar" style="height:8px"></div>
+              <div class="signal-bar" style="height:10px"></div>
+              <div class="signal-bar" style="height:12px"></div>
+              <div class="signal-bar" style="height:14px"></div>
+            </div>
+            <span class="signal-db" id="signal-db">— dB</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Event Stream -->
+      <div class="stream-container">
+        <div class="stream-header">
+          <div class="stream-title">
+            <span class="live-dot" id="live-dot"></span>
+            Event Stream
+            <span style="font-family:var(--mono);font-size:10px;color:var(--text-3);font-weight:500" id="evt-rate">0 evt/s</span>
+          </div>
+          <div class="filter-tabs">
+            <button class="filter-tab active" data-filter="all" onclick="setFilter('all',this)">All</button>
+            <button class="filter-tab" data-filter="call" onclick="setFilter('call',this)">Calls</button>
+            <button class="filter-tab" data-filter="sds" onclick="setFilter('sds',this)">SDS</button>
+            <button class="filter-tab" data-filter="voice" onclick="setFilter('voice',this)">Voice</button>
+            <button class="filter-tab" data-filter="system" onclick="setFilter('system',this)">System</button>
+          </div>
+        </div>
+        <div class="stream-body" id="stream-body">
+          <div class="empty-state" id="empty-state">
+            <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.348 14.651a3.75 3.75 0 010-5.303m5.304 0a3.75 3.75 0 010 5.303m-7.425 2.122a6.75 6.75 0 010-9.546m9.546 0a6.75 6.75 0 010 9.546M5.106 18.894c-3.808-3.808-3.808-9.98 0-13.789m13.788 0c3.808 3.808 3.808 9.981 0 13.79"/></svg>
+            <p>Waiting for signal...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Right Panel ─── -->
+    <div class="right-panel">
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Frames</div>
+          <div class="stat-value green" id="s-events">0</div>
+          <div class="stat-delta up" id="s-events-rate"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Calls</div>
+          <div class="stat-value blue" id="s-calls">0</div>
+          <div class="stat-delta" id="s-calls-rate"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Messages</div>
+          <div class="stat-value violet" id="s-sds">0</div>
+          <div class="stat-delta" id="s-sds-rate"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Clients</div>
+          <div class="stat-value amber" id="s-clients">0</div>
+          <div class="stat-delta" id="s-uptime"></div>
+        </div>
+      </div>
+
+      <!-- Network Info -->
+      <div class="panel-section">
+        <div class="panel-header">Network</div>
+        <div class="net-rows">
+          <div class="net-row"><span class="net-key">Protocol</span><span class="net-val" id="n-proto">TETRA</span></div>
+          <div class="net-row"><span class="net-key">MCC / MNC</span><span class="net-val unknown" id="n-mcc-mnc">—</span></div>
+          <div class="net-row"><span class="net-key">Colour Code</span><span class="net-val unknown" id="n-cc">—</span></div>
+          <div class="net-row"><span class="net-key">Location Area</span><span class="net-val unknown" id="n-la">—</span></div>
+          <div class="net-row"><span class="net-key">Downlink Freq</span><span class="net-val unknown" id="n-freq">—</span></div>
+          <div class="net-row"><span class="net-key">Encryption</span><span class="net-val unknown" id="n-enc">—</span></div>
+          <div class="net-row"><span class="net-key">Timeslots</span><span class="net-val unknown" id="n-ts">—</span></div>
+        </div>
+      </div>
+
+      <!-- Recent Calls -->
+      <div class="panel-section">
+        <div class="panel-header">Calls <span class="panel-count" id="calls-count">0</span></div>
+        <div id="calls-list" style="max-height:180px;overflow-y:auto">
+          <div style="padding:16px;text-align:center;color:var(--text-3);font-size:11px">No calls captured</div>
+        </div>
+      </div>
+
+      <!-- SDS Messages -->
+      <div class="panel-section">
+        <div class="panel-header">Messages <span class="panel-count" id="sds-count">0</span></div>
+        <div id="sds-list" style="max-height:140px;overflow-y:auto">
+          <div style="padding:16px;text-align:center;color:var(--text-3);font-size:11px">No messages captured</div>
+        </div>
+      </div>
+
+      <!-- Recordings -->
+      <div class="panel-section">
+        <div class="panel-header">Recordings <span class="panel-count" id="rec-count">0</span></div>
+        <div class="rec-list" id="rec-list">
+          <div style="padding:16px;text-align:center;color:var(--text-3);font-size:11px">No recordings</div>
+        </div>
+      </div>
+
+      <!-- Audio Player -->
+      <div class="audio-player">
+        <div class="player-label">Audio Monitor</div>
+        <div class="player-wave"><canvas id="wave-canvas"></canvas></div>
+        <div class="player-controls">
+          <button class="play-btn" id="play-btn" onclick="togglePlay()">
+            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
+          </button>
+          <span class="player-time" id="player-time">0:00</span>
+          <div class="player-track"><div class="player-progress" id="player-progress"></div></div>
+          <span class="player-file" id="player-file">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Settings Overlay ═══ -->
+<div class="settings-overlay" id="settings-overlay" onclick="if(event.target===this)closeSettings()">
+  <div class="settings-panel">
+    <div class="settings-nav">
+      <div class="settings-nav-title">Settings</div>
+      <button class="settings-nav-item active" onclick="showSettingsSection('receiver',this)">Receiver</button>
+      <button class="settings-nav-item" onclick="showSettingsSection('decoder',this)">Decoder</button>
+      <button class="settings-nav-item" onclick="showSettingsSection('display',this)">Display</button>
+      <button class="settings-nav-item" onclick="showSettingsSection('storage',this)">Storage</button>
+      <button class="settings-nav-item" onclick="showSettingsSection('connection',this)">Connection</button>
+      <button class="settings-nav-item" onclick="showSettingsSection('system',this)">System</button>
+    </div>
+    <div class="settings-content">
+      <div class="settings-header">
+        <div class="settings-section-title" id="settings-section-title">Receiver</div>
+        <button class="settings-close" onclick="closeSettings()">
+          <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="settings-body">
+
+        <!-- Receiver -->
+        <div class="settings-section active" id="sec-receiver">
+          <div class="set-group-label">RF Configuration</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Center Frequency</div><div class="set-desc">Receiver center frequency</div></div>
+            <div class="set-control"><input type="number" class="set-input" data-key="frequency" step="0.001" min="24" max="1766"><span class="set-unit">MHz</span></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">RF Gain</div><div class="set-desc">Tuner gain level (0 = auto)</div></div>
+            <div class="set-control"><input type="range" class="set-range" data-key="gain" min="0" max="49" step="1" oninput="this.nextElementSibling.textContent=this.value"><span class="set-unit" style="min-width:32px;text-align:right">40</span><span class="set-unit">dB</span></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">PPM Correction</div><div class="set-desc">Frequency offset correction</div></div>
+            <div class="set-control"><input type="number" class="set-input" data-key="ppm" step="1"><span class="set-unit">ppm</span></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Sample Rate</div><div class="set-desc">ADC sample rate</div></div>
+            <div class="set-control">
+              <select class="set-select" data-key="sampleRate">
+                <option value="250000">250 kS/s</option>
+                <option value="1000000">1.0 MS/s</option>
+                <option value="1200000">1.2 MS/s</option>
+                <option value="1800000">1.8 MS/s</option>
+                <option value="2000000">2.0 MS/s</option>
+                <option value="2400000">2.4 MS/s</option>
+                <option value="3200000">3.2 MS/s</option>
+              </select>
+            </div>
+          </div>
+          <div class="set-sep"></div>
+          <div class="set-group-label">Hardware</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">AGC</div><div class="set-desc">Automatic gain control</div></div>
+            <div class="set-control"><button class="set-toggle" data-key="agc" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">DC Offset Correction</div><div class="set-desc">Remove DC spike at center frequency</div></div>
+            <div class="set-control"><button class="set-toggle on" data-key="dcOffset" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Bias Tee</div><div class="set-desc">Enable phantom power for active antennas</div></div>
+            <div class="set-control"><button class="set-toggle" data-key="biasTee" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+        </div>
+
+        <!-- Decoder -->
+        <div class="settings-section" id="sec-decoder">
+          <div class="set-group-label">Protocol</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Protocol</div><div class="set-desc">Digital radio protocol to decode</div></div>
+            <div class="set-control">
+              <select class="set-select" data-key="protocol">
+                <option value="tetra">TETRA</option>
+                <option value="dmr">DMR</option>
+                <option value="p25">P25</option>
+                <option value="nxdn">NXDN</option>
+                <option value="dpmr">dPMR</option>
+                <option value="analog_fm">Analog FM</option>
+                <option value="analog_am">Analog AM</option>
+              </select>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Timeslot Filter</div><div class="set-desc">Filter specific timeslots (comma-separated, or "all")</div></div>
+            <div class="set-control"><input type="text" class="set-input" data-key="timeslotFilter" placeholder="all"></div>
+          </div>
+          <div class="set-sep"></div>
+          <div class="set-group-label">Features</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Error Correction</div><div class="set-desc">Apply FEC to decoded frames</div></div>
+            <div class="set-control"><button class="set-toggle on" data-key="errorCorrection" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Voice Decoding</div><div class="set-desc">Decode and record voice traffic</div></div>
+            <div class="set-control"><button class="set-toggle on" data-key="voiceDecode" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">SDS / Message Decoding</div><div class="set-desc">Decode short data service messages</div></div>
+            <div class="set-control"><button class="set-toggle on" data-key="sdsDecode" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+        </div>
+
+        <!-- Display -->
+        <div class="settings-section" id="sec-display">
+          <div class="set-group-label">Spectrum</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Spectrum Color</div><div class="set-desc">Primary color for spectrum trace</div></div>
+            <div class="set-control"><input type="color" class="set-color" data-key="spectrumColor" value="#22c55e"></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Peak Hold</div><div class="set-desc">Show peak hold markers on spectrum</div></div>
+            <div class="set-control"><button class="set-toggle on" data-key="peakHold" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Peak Decay Rate</div><div class="set-desc">How fast peak markers decay</div></div>
+            <div class="set-control"><input type="range" class="set-range" data-key="peakDecay" min="0.05" max="1" step="0.05" oninput="this.nextElementSibling.textContent=parseFloat(this.value).toFixed(2)"><span class="set-unit" style="min-width:32px;text-align:right">0.30</span></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Grid Lines</div><div class="set-desc">Show grid overlay on spectrum</div></div>
+            <div class="set-control"><button class="set-toggle on" data-key="showGrid" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">dB Scale</div><div class="set-desc">Show decibel labels on spectrum</div></div>
+            <div class="set-control"><button class="set-toggle on" data-key="showDbScale" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+          <div class="set-sep"></div>
+          <div class="set-group-label">Waterfall</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Colormap</div><div class="set-desc">Waterfall color scheme</div></div>
+            <div class="set-control">
+              <select class="set-select" data-key="waterfallColormap">
+                <option value="green">Green (default)</option>
+                <option value="viridis">Viridis</option>
+                <option value="magma">Magma</option>
+                <option value="inferno">Inferno</option>
+                <option value="plasma">Plasma</option>
+                <option value="turbo">Turbo</option>
+              </select>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Scroll Speed</div><div class="set-desc">Waterfall scroll speed multiplier</div></div>
+            <div class="set-control"><input type="range" class="set-range" data-key="waterfallSpeed" min="0.2" max="3" step="0.1" oninput="this.nextElementSibling.textContent=parseFloat(this.value).toFixed(1)"><span class="set-unit" style="min-width:28px;text-align:right">1.0</span></div>
+          </div>
+          <div class="set-sep"></div>
+          <div class="set-group-label">Event Log</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Max Events</div><div class="set-desc">Maximum events retained in the stream</div></div>
+            <div class="set-control"><input type="number" class="set-input" data-key="maxEvents" min="100" max="10000" step="100"></div>
+          </div>
+        </div>
+
+        <!-- Storage -->
+        <div class="settings-section" id="sec-storage">
+          <div class="set-group-label">Recordings</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Recording Directory</div><div class="set-desc">Path for saved recordings on the server</div></div>
+            <div class="set-control"><input type="text" class="set-input set-input-wide" data-key="recordingDir"></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Recording Format</div><div class="set-desc">Audio file format for recordings</div></div>
+            <div class="set-control">
+              <select class="set-select" data-key="recordingFormat">
+                <option value="wav">WAV</option>
+                <option value="flac">FLAC</option>
+                <option value="ogg">OGG Vorbis</option>
+              </select>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Auto-Record Calls</div><div class="set-desc">Automatically record all voice calls</div></div>
+            <div class="set-control"><button class="set-toggle" data-key="autoRecord" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+          <div class="set-sep"></div>
+          <div class="set-group-label">Limits</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Max Recording Duration</div><div class="set-desc">Auto-stop recording after this duration</div></div>
+            <div class="set-control"><input type="number" class="set-input" data-key="maxRecordingMin" min="1" max="1440"><span class="set-unit">min</span></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Max Storage Usage</div><div class="set-desc">Purge oldest recordings when exceeded</div></div>
+            <div class="set-control"><input type="number" class="set-input" data-key="maxStorageMB" min="100" max="65536"><span class="set-unit">MB</span></div>
+          </div>
+        </div>
+
+        <!-- Connection -->
+        <div class="settings-section" id="sec-connection">
+          <div class="set-group-label">Server</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">API Endpoint</div><div class="set-desc">Backend REST API URL</div></div>
+            <div class="set-control"><input type="text" class="set-input set-input-wide" data-key="apiHost"></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">WebSocket URL</div><div class="set-desc">Real-time event stream endpoint</div></div>
+            <div class="set-control"><input type="text" class="set-input set-input-wide" data-key="wsUrl"></div>
+          </div>
+          <div class="set-sep"></div>
+          <div class="set-group-label">Behavior</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Reconnect Interval</div><div class="set-desc">Delay between reconnection attempts</div></div>
+            <div class="set-control"><input type="number" class="set-input" data-key="reconnectInterval" min="1" max="60"><span class="set-unit">sec</span></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Auto-Reconnect</div><div class="set-desc">Automatically reconnect on disconnect</div></div>
+            <div class="set-control"><button class="set-toggle on" data-key="autoReconnect" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+        </div>
+
+        <!-- System -->
+        <div class="settings-section" id="sec-system">
+          <div class="set-group-label">Services</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Scanner Service</div><div class="set-desc">tetra-sdr.service — SDR receiver</div></div>
+            <div class="set-control"><button class="set-btn" onclick="restartService('tetra-sdr')">Restart</button></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Decoder Service</div><div class="set-desc">tetra-decoder.service — Frame decoder</div></div>
+            <div class="set-control"><button class="set-btn" onclick="restartService('tetra-decoder')">Restart</button></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">API Service</div><div class="set-desc">tetra-api.service — Web API server</div></div>
+            <div class="set-control"><button class="set-btn" onclick="restartService('tetra-api')">Restart</button></div>
+          </div>
+          <div class="set-sep"></div>
+          <div class="set-group-label">Data</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Clear Database</div><div class="set-desc">Remove all captured events, calls, and messages</div></div>
+            <div class="set-control"><button class="set-btn-danger" onclick="clearDatabase()">Clear All Data</button></div>
+          </div>
+          <div class="set-sep"></div>
+          <div class="set-group-label">Configuration</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Export Settings</div><div class="set-desc">Download current settings as JSON file</div></div>
+            <div class="set-control"><button class="set-btn" onclick="exportSettings()">Export</button></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Import Settings</div><div class="set-desc">Load settings from a JSON file</div></div>
+            <div class="set-control"><button class="set-btn" onclick="document.getElementById('settings-import').click()">Import</button><input type="file" id="settings-import" accept=".json" style="display:none" onchange="importSettings(this)"></div>
+          </div>
+          <div class="set-sep"></div>
+          <div class="set-group-label">About</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Sigint Dashboard</div><div class="set-desc">v1.0.0 · Radio Intelligence Platform</div></div>
+            <div class="set-control"><span class="set-unit">⌘ , to toggle</span></div>
+          </div>
+        </div>
+
+      </div>
+      <div class="settings-footer">
+        <button class="set-btn" onclick="resetSettings()">Reset Defaults</button>
+        <div style="flex:1"></div>
+        <button class="set-btn" onclick="closeSettings()">Cancel</button>
+        <button class="set-btn-primary" onclick="saveSettings()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   SIGINT — Runtime
+   ══════════════════════════════════════════════════════════ */
+
+const API = window.location.origin;
+const WS_URL = `ws://${window.location.host}/ws`;
+
+/* ── State ── */
+let ws = null;
+let paused = false;
+let recording = false;
+let activeFilter = 'all';
+let evtCount = 0, callCount = 0, sdsCount = 0;
+let evtPerSec = 0, evtWindow = [];
+let MAX_EVENTS = 800;
+const calls = [];
+const messages = [];
+
+/* ── Classification ── */
+function classify(f) {
+  const s = JSON.stringify(f).toLowerCase();
+  if (s.includes('d-setup') || s.includes('d_setup')) return { type:'call', badge:'badge-call', label:'CALL' };
+  if (s.includes('d-release') || s.includes('d_release')) return { type:'call', badge:'badge-release', label:'END' };
+  if (s.includes('d-connect') || s.includes('d_connect')) return { type:'call', badge:'badge-call', label:'CONN' };
+  if (s.includes('sds')) return { type:'sds', badge:'badge-sds', label:'SDS' };
+  if (s.includes('speech') || s.includes('voice') || s.includes('traffic')) return { type:'voice', badge:'badge-voice', label:'VOICE' };
+  if (s.includes('system info') || s.includes('sysinfo') || s.includes('sync') || s.includes('d-nwrk')) return { type:'system', badge:'badge-system', label:'SYS' };
+  if (s.includes('mac') || s.includes('slot')) return { type:'data', badge:'badge-data', label:'DATA' };
+  return { type:'data', badge:'badge-signal', label:'FRAME' };
+}
+
+function matchesFilter(cls) {
+  if (activeFilter === 'all') return true;
+  return cls.type === activeFilter;
+}
+
+/* ── Time ── */
+function fmtTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts * 1000);
+  return d.toLocaleTimeString('en-GB', { hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+
+function fmtMs(ts) {
+  if (!ts) return '';
+  const d = new Date(ts * 1000);
+  const ms = String(d.getMilliseconds()).padStart(3, '0').slice(0, 1);
+  return fmtTime(ts) + '.' + ms;
+}
+
+/* ── Event Stream ── */
+function addEvent(frame) {
+  if (paused) return;
+  const cls = classify(frame);
+  const ts = frame._ts || Date.now() / 1000;
+
+  evtCount++;
+  evtWindow.push(Date.now());
+  document.getElementById('s-events').textContent = fmtNum(evtCount);
+
+  // Track calls
+  if (cls.label === 'CALL' || cls.label === 'CONN') {
+    callCount++;
+    document.getElementById('s-calls').textContent = fmtNum(callCount);
+    calls.unshift({
+      ts, caller: frame.calling_party || frame.caller_ssi || '?',
+      called: frame.called_party || frame.called_ssi || '?',
+      encrypted: !!frame.encryption, active: true, id: frame.call_identifier || frame.call_id
+    });
+    if (calls.length > 30) calls.pop();
+    renderCalls();
+  }
+  if (cls.label === 'END') {
+    const cid = frame.call_identifier || frame.call_id;
+    const c = calls.find(x => x.id === cid);
+    if (c) c.active = false;
+    renderCalls();
+  }
+
+  // Track SDS
+  if (cls.type === 'sds') {
+    sdsCount++;
+    document.getElementById('s-sds').textContent = fmtNum(sdsCount);
+    messages.unshift({
+      ts, from: frame.from_ssi || frame.calling_party || '?',
+      text: frame.text || frame.sds_data || '(binary data)'
+    });
+    if (messages.length > 50) messages.pop();
+    renderSds();
+  }
+
+  // Network info
+  updateNetInfo(frame);
+
+  // Update frequency display
+  const freq = frame.frequency || frame.freq;
+  if (freq) document.getElementById('freq-display').innerHTML = (freq / 1e6).toFixed(4) + '<span class="unit">MHz</span>';
+
+  // Add to stream
+  if (!matchesFilter(cls)) return;
+
+  const body = document.getElementById('stream-body');
+  const empty = document.getElementById('empty-state');
+  if (empty) empty.remove();
+
+  const el = document.createElement('div');
+  el.className = 'evt';
+  el.dataset.type = cls.type;
+
+  let info = buildInfo(frame, cls);
+
+  el.innerHTML = `
+    <span class="evt-ts">${fmtMs(ts)}</span>
+    <span class="badge ${cls.badge}">${cls.label}</span>
+    <span class="evt-body">${info}</span>
+    <span class="evt-meta">${frame.timeslot !== undefined ? 'TS' + frame.timeslot : frame.tn !== undefined ? 'TS' + frame.tn : ''}</span>
+  `;
+
+  body.prepend(el);
+  while (body.children.length > MAX_EVENTS) body.lastChild.remove();
+
+}
+
+function buildInfo(f, cls) {
+  let parts = [];
+  const freq = f.frequency || f.freq;
+  if (freq) parts.push(`<span class="freq">${(freq / 1e6).toFixed(4)}</span>`);
+  if (f.calling_party || f.caller_ssi) parts.push(`<span class="ssi">${f.calling_party || f.caller_ssi}</span>`);
+  if ((f.called_party || f.called_ssi) && cls.label === 'CALL')
+    parts.push(`<span class="dim">→</span> <span class="ssi">${f.called_party || f.called_ssi}</span>`);
+  if (f.text) parts.push(`<span class="hl">${escHtml(f.text)}</span>`);
+  if (f.encryption) parts.push(`<span style="color:var(--rose)">ENC</span>`);
+
+  if (parts.length === 0) {
+    const raw = JSON.stringify(f);
+    parts.push(`<span class="dim">${escHtml(raw.substring(0, 100))}</span>`);
+  }
+  return parts.join(' <span class="dim">·</span> ');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtNum(n) { return n.toLocaleString(); }
+
+/* ── Filter ── */
+function setFilter(f, el) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+
+  // Re-filter visible events
+  document.querySelectorAll('.evt').forEach(e => {
+    e.style.display = (f === 'all' || e.dataset.type === f) ? '' : 'none';
+  });
+}
+
+/* ── Network Info ── */
+function updateNetInfo(f) {
+  const raw = JSON.stringify(f).toLowerCase();
+  if (!raw.includes('system info') && !raw.includes('sysinfo') && !raw.includes('d-nwrk') && !f.mcc) return;
+
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (val !== undefined && val !== null && val !== '') {
+      el.textContent = val;
+      el.classList.remove('unknown');
+    }
+  };
+
+  if (f.mcc || f.mnc) set('n-mcc-mnc', `${f.mcc || '?'} / ${f.mnc || '?'}`);
+  if (f.colour_code !== undefined) set('n-cc', f.colour_code);
+  if (f.la !== undefined) set('n-la', f.la);
+  const freq = f.frequency || f.freq || f.dl_freq;
+  if (freq) set('n-freq', (freq / 1e6).toFixed(4) + ' MHz');
+  if (f.encryption !== undefined) set('n-enc', f.encryption ? 'Yes (TEA)' : 'None');
+  if (f.timeslots !== undefined) set('n-ts', f.timeslots);
+}
+
+/* ── Calls ── */
+function renderCalls() {
+  const el = document.getElementById('calls-list');
+  document.getElementById('calls-count').textContent = callCount;
+  if (calls.length === 0) return;
+  el.innerHTML = calls.slice(0, 15).map(c => `
+    <div class="call-item">
+      <div class="call-direction ${c.active ? 'active' : 'ended'}"></div>
+      <div class="call-info">
+        <div class="call-parties">${c.caller}<span class="arrow">→</span>${c.called}</div>
+        <div class="call-sub">${c.encrypted ? '<span class="enc">Encrypted</span> · ' : ''}${c.active ? 'Active' : 'Ended'}</div>
+      </div>
+      <div class="call-time">${fmtTime(c.ts)}</div>
+    </div>
+  `).join('');
+}
+
+/* ── SDS ── */
+function renderSds() {
+  const el = document.getElementById('sds-list');
+  document.getElementById('sds-count').textContent = sdsCount;
+  if (messages.length === 0) return;
+  el.innerHTML = messages.slice(0, 15).map(m => `
+    <div class="sds-item">
+      <div class="sds-head">
+        <span class="sds-from">${m.from}</span>
+        <span class="sds-time">${fmtTime(m.ts)}</span>
+      </div>
+      <div class="sds-body">${escHtml(m.text)}</div>
+    </div>
+  `).join('');
+}
+
+/* ── Controls ── */
+function togglePause() {
+  paused = !paused;
+  const btn = document.getElementById('btn-pause');
+  btn.classList.toggle('active', paused);
+  btn.innerHTML = paused
+    ? '<svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20" fill="currentColor" stroke="none"/></svg> Resume'
+    : '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg> Pause';
+  document.getElementById('live-dot').style.animationPlayState = paused ? 'paused' : 'running';
+}
+
+function clearStream() {
+  const body = document.getElementById('stream-body');
+  body.innerHTML = `<div class="empty-state" id="empty-state">
+    <svg viewBox="0 0 24 24" style="width:32px;height:32px;stroke:var(--text-3);fill:none;stroke-width:1.5;opacity:0.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.348 14.651a3.75 3.75 0 010-5.303m5.304 0a3.75 3.75 0 010 5.303m-7.425 2.122a6.75 6.75 0 010-9.546m9.546 0a6.75 6.75 0 010 9.546M5.106 18.894c-3.808-3.808-3.808-9.98 0-13.789m13.788 0c3.808 3.808 3.808 9.981 0 13.79"/></svg>
+    <p style="font-size:13px">Stream cleared</p>
+  </div>`;
+
+  // Clear waterfall + reset spectrum
+  const w = wfCanvas.width / (window.devicePixelRatio || 1);
+  const h = wfCanvas.height / (window.devicePixelRatio || 1);
+  wfCtx.clearRect(0, 0, w, h);
+  specData.fill(-90);
+  specPeak.fill(-90);
+  signalLevel = -90;
+  updateSignalMeter();
+}
+
+function toggleRecord() {
+  recording = !recording;
+  document.getElementById('btn-record').classList.toggle('active', recording);
+}
+
+/* ── Live Audio Monitor ── */
+let audioCtx = null;
+let audioPlaying = false;
+let audioWs = null;
+let audioQueue = [];
+let audioNode = null;
+let audioWaveData = new Float32Array(128);
+
+function togglePlay() {
+  audioPlaying ? stopAudio() : startAudio();
+}
+
+function startAudio() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+  audioNode = audioCtx.createScriptProcessor(2048, 0, 1);
+  audioQueue = [];
+
+  audioNode.onaudioprocess = (e) => {
+    const out = e.outputBuffer.getChannelData(0);
+    let written = 0;
+    while (written < out.length && audioQueue.length > 0) {
+      const chunk = audioQueue[0];
+      const off = chunk._off || 0;
+      const avail = chunk.length - off;
+      const n = Math.min(out.length - written, avail);
+      out.set(chunk.subarray(off, off + n), written);
+      written += n;
+      chunk._off = off + n;
+      if (chunk._off >= chunk.length) audioQueue.shift();
+    }
+    for (let i = written; i < out.length; i++) out[i] = 0;
+    // Grab waveform snapshot for visualization
+    const step = Math.max(1, Math.floor(out.length / audioWaveData.length));
+    for (let i = 0; i < audioWaveData.length; i++) audioWaveData[i] = out[i * step];
+  };
+
+  audioNode.connect(audioCtx.destination);
+  audioPlaying = true;
+
+  // Connect to audio WebSocket
+  const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  audioWs = new WebSocket(`${wsProto}//${window.location.host}/ws/audio`);
+  audioWs.binaryType = 'arraybuffer';
+
+  audioWs.onmessage = (e) => {
+    if (!audioPlaying) return;
+    const pcm16 = new Int16Array(e.data);
+    const f32 = new Float32Array(pcm16.length);
+    for (let i = 0; i < pcm16.length; i++) f32[i] = pcm16[i] / 32768.0;
+    audioQueue.push(f32);
+    // Cap queue at ~1 second (16000 samples / ~700 per chunk ≈ 23 chunks)
+    while (audioQueue.length > 25) audioQueue.shift();
+  };
+
+  audioWs.onclose = () => { if (audioPlaying) stopAudio(); };
+  audioWs.onerror = () => { if (audioWs) audioWs.close(); };
+
+  // Update button
+  const btn = document.getElementById('play-btn');
+  btn.style.background = 'var(--rose)';
+  btn.innerHTML = '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1" fill="white"/><rect x="14" y="4" width="4" height="16" rx="1" fill="white"/></svg>';
+  document.getElementById('player-time').textContent = 'LIVE';
+  document.getElementById('player-time').style.color = 'var(--accent)';
+}
+
+function stopAudio() {
+  audioPlaying = false;
+  if (audioWs) { audioWs.close(); audioWs = null; }
+  if (audioNode) { audioNode.disconnect(); audioNode = null; }
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  audioQueue = [];
+  audioWaveData.fill(0);
+
+  const btn = document.getElementById('play-btn');
+  btn.style.background = 'var(--accent)';
+  btn.innerHTML = '<svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20" fill="white"/></svg>';
+  document.getElementById('player-time').textContent = '0:00';
+  document.getElementById('player-time').style.color = '';
+}
+
+/* ── Spectrum Visualization ── */
+const specCanvas = document.getElementById('spectrum-canvas');
+const specCtx = specCanvas.getContext('2d');
+const wfCanvas = document.getElementById('waterfall-canvas');
+const wfCtx = wfCanvas.getContext('2d');
+const waveCanvas = document.getElementById('wave-canvas');
+const waveCtx = waveCanvas.getContext('2d');
+
+const FFT_SIZE = 256;
+let specData = new Float32Array(FFT_SIZE).fill(-90);
+let specPeak = new Float32Array(FFT_SIZE).fill(-90);
+let signalLevel = -90;
+let fftWs = null;
+let fftLive = false;  // true once real FFT data is flowing
+
+function resizeCanvases() {
+  const sc = specCanvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const specH = Math.floor(sc.clientHeight * 0.4);
+  const wfH = sc.clientHeight - specH;
+
+  specCanvas.width = sc.clientWidth * dpr;
+  specCanvas.height = specH * dpr;
+  specCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  wfCanvas.width = sc.clientWidth * dpr;
+  wfCanvas.height = wfH * dpr;
+  wfCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const wc = waveCanvas.parentElement;
+  waveCanvas.width = wc.clientWidth * dpr;
+  waveCanvas.height = 32 * dpr;
+  waveCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+/* ── FFT WebSocket ── */
+function connectFFT() {
+  const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  fftWs = new WebSocket(`${wsProto}//${window.location.host}/ws/fft`);
+  fftWs.binaryType = 'arraybuffer';
+
+  fftWs.onopen = () => { fftLive = true; };
+
+  fftWs.onmessage = (e) => {
+    if (paused) return;
+    const raw = new Float32Array(e.data);
+    if (raw.length !== FFT_SIZE) return;
+
+    // FFT-shift: logpwrfft outputs [0..N/2-1, -N/2..-1], swap halves for centered display
+    const half = FFT_SIZE / 2;
+    for (let i = 0; i < half; i++) {
+      specData[i] = raw[i + half];
+      specData[i + half] = raw[i];
+    }
+
+    // Update peak hold
+    const decay = settings.peakDecay || 0.3;
+    for (let i = 0; i < FFT_SIZE; i++) {
+      specPeak[i] = Math.max(specPeak[i] - decay, specData[i]);
+    }
+
+    // Signal level = peak value in the center portion
+    let peak = -120;
+    const cStart = Math.floor(FFT_SIZE * 0.4);
+    const cEnd = Math.floor(FFT_SIZE * 0.6);
+    for (let i = cStart; i < cEnd; i++) {
+      if (specData[i] > peak) peak = specData[i];
+    }
+    signalLevel = peak;
+  };
+
+  fftWs.onclose = () => {
+    fftLive = false;
+    setTimeout(connectFFT, 3000);
+  };
+  fftWs.onerror = () => { if (fftWs) fftWs.close(); };
+}
+
+function feedSpectrum() {
+  // Fallback: simulated noise when no real FFT data
+  if (fftLive) return;
+  for (let i = 0; i < specData.length; i++) {
+    const noise = -90 + Math.random() * 6;
+    specData[i] = specData[i] * 0.7 + noise * 0.3;
+    specPeak[i] = Math.max(specPeak[i] - 0.3, specData[i]);
+  }
+  signalLevel = -90;
+}
+
+function drawSpectrum() {
+  const w = specCanvas.width / (window.devicePixelRatio || 1);
+  const h = specCanvas.height / (window.devicePixelRatio || 1);
+  specCtx.clearRect(0, 0, w, h);
+
+  // Grid lines
+  specCtx.strokeStyle = 'rgba(255,255,255,0.03)';
+  specCtx.lineWidth = 1;
+  for (let db = -100; db <= -20; db += 10) {
+    const y = h - ((db + 110) / 90) * h;
+    specCtx.beginPath();
+    specCtx.moveTo(0, y);
+    specCtx.lineTo(w, y);
+    specCtx.stroke();
+  }
+
+  // dB scale labels
+  specCtx.font = '9px ' + getComputedStyle(document.body).getPropertyValue('--mono');
+  specCtx.fillStyle = 'rgba(255,255,255,0.12)';
+  for (let db = -100; db <= -20; db += 10) {
+    const y = h - ((db + 110) / 90) * h;
+    if (y > 8 && y < h - 4) specCtx.fillText(db + ' dB', 4, y - 2);
+  }
+
+  const step = w / specData.length;
+
+  // Filled spectrum
+  const grad = specCtx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, 'rgba(34,197,94,0.35)');
+  grad.addColorStop(0.5, 'rgba(6,182,212,0.15)');
+  grad.addColorStop(1, 'rgba(6,182,212,0)');
+
+  specCtx.beginPath();
+  specCtx.moveTo(0, h);
+  for (let i = 0; i < specData.length; i++) {
+    const x = i * step;
+    const y = h - ((specData[i] + 110) / 90) * h;
+    i === 0 ? specCtx.moveTo(x, y) : specCtx.lineTo(x, y);
+  }
+  specCtx.lineTo(w, h);
+  specCtx.closePath();
+  specCtx.fillStyle = grad;
+  specCtx.fill();
+
+  // Spectrum line
+  specCtx.beginPath();
+  for (let i = 0; i < specData.length; i++) {
+    const x = i * step;
+    const y = h - ((specData[i] + 110) / 90) * h;
+    i === 0 ? specCtx.moveTo(x, y) : specCtx.lineTo(x, y);
+  }
+  specCtx.strokeStyle = '#22c55e';
+  specCtx.lineWidth = 1.5;
+  specCtx.shadowColor = 'rgba(34,197,94,0.5)';
+  specCtx.shadowBlur = 6;
+  specCtx.stroke();
+  specCtx.shadowBlur = 0;
+
+  // Peak hold
+  specCtx.beginPath();
+  for (let i = 0; i < specPeak.length; i++) {
+    const x = i * step;
+    const y = h - ((specPeak[i] + 110) / 90) * h;
+    specCtx.moveTo(x, y);
+    specCtx.lineTo(x + step * 0.8, y);
+  }
+  specCtx.strokeStyle = 'rgba(34,197,94,0.25)';
+  specCtx.lineWidth = 1;
+  specCtx.stroke();
+}
+
+let wfAccum = 0;
+
+function drawWaterfall() {
+  const w = wfCanvas.width / (window.devicePixelRatio || 1);
+  const h = wfCanvas.height / (window.devicePixelRatio || 1);
+  const speed = settings.waterfallSpeed || 1;
+
+  // Accumulate fractional scroll; only shift when >= 1 pixel
+  wfAccum += speed;
+  const lines = Math.floor(wfAccum);
+  if (lines < 1) return;
+  wfAccum -= lines;
+
+  // Shift down by `lines` pixels
+  wfCtx.drawImage(wfCanvas, 0, 0, wfCanvas.width, wfCanvas.height, 0, lines, w, h);
+
+  // Draw new top line(s)
+  const step = w / specData.length;
+  for (let row = 0; row < lines; row++) {
+    for (let i = 0; i < specData.length; i++) {
+      const v = (specData[i] + 110) / 50;
+      const r = Math.floor(v * 20);
+      const g = Math.floor(v * 180 + 20);
+      const b = Math.floor(v * 80 + 60);
+      wfCtx.fillStyle = `rgb(${r},${g},${b})`;
+      wfCtx.fillRect(i * step, row, step + 0.5, 1);
+    }
+  }
+}
+
+function drawWaveform() {
+  const w = waveCanvas.width / (window.devicePixelRatio || 1);
+  const h = 32;
+  waveCtx.clearRect(0, 0, w, h);
+  waveCtx.beginPath();
+  const mid = h / 2;
+
+  if (audioPlaying && audioWaveData) {
+    // Draw real audio waveform
+    const step = w / audioWaveData.length;
+    for (let i = 0; i < audioWaveData.length; i++) {
+      const x = i * step;
+      const y = mid + audioWaveData[i] * mid * 0.9;
+      i === 0 ? waveCtx.moveTo(x, y) : waveCtx.lineTo(x, y);
+    }
+  } else {
+    // Simulated idle waveform
+    for (let x = 0; x < w; x++) {
+      const t = Date.now() / 1000 + x * 0.01;
+      const amp = (signalLevel + 90) / 50 * mid * 0.8;
+      const y = mid + Math.sin(t * 3) * amp * Math.sin(t * 0.7) * 0.5;
+      x === 0 ? waveCtx.moveTo(x, y) : waveCtx.lineTo(x, y);
+    }
+  }
+
+  waveCtx.strokeStyle = audioPlaying ? 'rgba(34,197,94,0.8)' : 'rgba(34,197,94,0.5)';
+  waveCtx.lineWidth = audioPlaying ? 1.5 : 1;
+  waveCtx.stroke();
+}
+
+function updateSignalMeter() {
+  const bars = document.querySelectorAll('#signal-bars .signal-bar');
+  const level = Math.max(0, Math.min(6, Math.floor((signalLevel + 90) / 10)));
+  bars.forEach((b, i) => b.classList.toggle('on', i < level));
+  document.getElementById('signal-db').textContent = signalLevel.toFixed(0) + ' dB';
+}
+
+/* ── Animation Loop ── */
+function animationLoop() {
+  if (!paused) {
+    feedSpectrum();
+    drawSpectrum();
+    drawWaterfall();
+    drawWaveform();
+    updateSignalMeter();
+  }
+  requestAnimationFrame(animationLoop);
+}
+
+/* ── Clock ── */
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
+}
+
+/* ── Event Rate ── */
+function updateRate() {
+  const now = Date.now();
+  evtWindow = evtWindow.filter(t => now - t < 5000);
+  const rate = (evtWindow.length / 5).toFixed(1);
+  document.getElementById('evt-rate').textContent = rate + ' evt/s';
+}
+
+/* ── WebSocket ── */
+function connect() {
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => {
+    document.getElementById('conn-dot').classList.add('live');
+    document.getElementById('conn-label').textContent = 'Connected';
+    document.getElementById('conn-label').style.color = 'var(--accent)';
+  };
+  ws.onmessage = (e) => {
+    try { addEvent(JSON.parse(e.data)); } catch {}
+  };
+  ws.onclose = () => {
+    document.getElementById('conn-dot').classList.remove('live');
+    document.getElementById('conn-label').textContent = 'Reconnecting...';
+    document.getElementById('conn-label').style.color = 'var(--text-2)';
+    setTimeout(connect, 3000);
+  };
+  ws.onerror = () => ws.close();
+}
+
+/* ── Fetch Status ── */
+async function fetchStatus() {
+  try {
+    const r = await fetch(API + '/api/status');
+    const d = await r.json();
+    evtCount = d.total_events; callCount = d.total_calls; sdsCount = d.total_sds;
+    document.getElementById('s-events').textContent = fmtNum(d.total_events);
+    document.getElementById('s-calls').textContent = fmtNum(d.total_calls);
+    document.getElementById('s-sds').textContent = fmtNum(d.total_sds);
+    document.getElementById('s-clients').textContent = d.ws_clients;
+  } catch {}
+}
+
+async function fetchRecordings() {
+  try {
+    const r = await fetch(API + '/api/recordings');
+    const files = await r.json();
+    const el = document.getElementById('rec-list');
+    document.getElementById('rec-count').textContent = files.length;
+    if (files.length === 0) return;
+    el.innerHTML = files.slice(0, 20).map(f => `
+      <div class="rec-item" onclick="document.getElementById('player-file').textContent='${escHtml(f.name)}'">
+        <div class="rec-icon"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m-4 0h8m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg></div>
+        <span class="rec-name">${escHtml(f.name)}</span>
+        <span class="rec-size">${(f.size / 1024).toFixed(0)}K</span>
+      </div>
+    `).join('');
+  } catch {}
+}
+
+/* ── Settings ── */
+const SETTINGS_DEFAULTS = {
+  frequency: 390.525, gain: 40, ppm: 0, sampleRate: '2000000',
+  agc: false, dcOffset: true, biasTee: false,
+  protocol: 'tetra', errorCorrection: true, voiceDecode: true, sdsDecode: true, timeslotFilter: 'all',
+  spectrumColor: '#22c55e', waterfallColormap: 'green', waterfallSpeed: 1.0,
+  maxEvents: 800, peakHold: true, peakDecay: 0.3, showGrid: true, showDbScale: true,
+  recordingDir: '/opt/tetra-scanner/recordings', autoRecord: false, maxRecordingMin: 30,
+  maxStorageMB: 1024, recordingFormat: 'wav',
+  apiHost: window.location.origin, wsUrl: `ws://${window.location.host}/ws`,
+  reconnectInterval: 3, autoReconnect: true,
+};
+
+let settings = { ...SETTINGS_DEFAULTS };
+
+function loadSettings() {
+  try {
+    const saved = localStorage.getItem('sigint-settings');
+    if (saved) settings = { ...SETTINGS_DEFAULTS, ...JSON.parse(saved) };
+  } catch {}
+}
+
+function populateSettingsForm() {
+  document.querySelectorAll('[data-key]').forEach(el => {
+    const key = el.dataset.key;
+    const val = settings[key];
+    if (val === undefined) return;
+    if (el.classList.contains('set-toggle')) {
+      el.classList.toggle('on', !!val);
+    } else {
+      el.value = val;
+    }
+  });
+  // Update range display values
+  document.querySelectorAll('.set-range[data-key]').forEach(el => {
+    const span = el.nextElementSibling;
+    if (span) {
+      const step = parseFloat(el.step) || 1;
+      span.textContent = step < 1 ? parseFloat(el.value).toFixed(step < 0.1 ? 2 : 1) : el.value;
+    }
+  });
+}
+
+function saveSettings() {
+  document.querySelectorAll('[data-key]').forEach(el => {
+    const key = el.dataset.key;
+    if (el.classList.contains('set-toggle')) {
+      settings[key] = el.classList.contains('on');
+    } else if (el.type === 'number' || el.type === 'range') {
+      settings[key] = parseFloat(el.value);
+    } else {
+      settings[key] = el.value;
+    }
+  });
+  localStorage.setItem('sigint-settings', JSON.stringify(settings));
+  applySettings();
+  closeSettings();
+  pushServerSettings();
+}
+
+function applySettings() {
+  MAX_EVENTS = settings.maxEvents || 800;
+  document.getElementById('mode-select').value = settings.protocol || 'tetra';
+}
+
+function resetSettings() {
+  if (!confirm('Reset all settings to defaults?')) return;
+  settings = { ...SETTINGS_DEFAULTS };
+  localStorage.removeItem('sigint-settings');
+  populateSettingsForm();
+  applySettings();
+}
+
+function toggleSettings() {
+  const overlay = document.getElementById('settings-overlay');
+  overlay.classList.contains('open') ? closeSettings() : openSettings();
+}
+
+function openSettings() {
+  populateSettingsForm();
+  document.getElementById('settings-overlay').classList.add('open');
+  document.getElementById('btn-settings').classList.add('active');
+}
+
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('open');
+  document.getElementById('btn-settings').classList.remove('active');
+}
+
+function showSettingsSection(id, el) {
+  document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.settings-nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('settings-section-title').textContent = el.textContent.trim();
+}
+
+async function pushServerSettings() {
+  try {
+    await fetch(API + '/api/tune', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        frequency: settings.frequency * 1e6,
+        gain: settings.gain,
+        ppm: settings.ppm,
+      })
+    });
+  } catch {}
+  // Also push mode if it changed
+  try {
+    await fetch(API + '/api/mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: settings.protocol })
+    });
+  } catch {}
+}
+
+function updateStreamVisibility(mode) {
+  const lp = document.querySelector('.left-panel');
+  if (mode === 'tetra') {
+    lp.classList.remove('stream-hidden');
+  } else {
+    lp.classList.add('stream-hidden');
+  }
+  resizeCanvases();
+}
+
+async function changeMode(mode) {
+  settings.protocol = mode;
+  localStorage.setItem('sigint-settings', JSON.stringify(settings));
+  // Sync the Settings panel dropdown
+  const settingsSelect = document.querySelector('[data-key="protocol"]');
+  if (settingsSelect) settingsSelect.value = mode;
+  updateStreamVisibility(mode);
+  // Push to backend
+  try {
+    const r = await fetch(API + '/api/mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode })
+    });
+    if (r.ok) {
+      const data = await r.json();
+      // Update both dropdowns to reflect actual mode
+      document.getElementById('mode-select').value = data.mode;
+      settings.protocol = data.mode;
+      updateStreamVisibility(data.mode);
+    }
+  } catch {}
+}
+
+/* ── Inline Frequency Editor ── */
+let freqEditing = false;
+
+function startFreqEdit() {
+  if (freqEditing) return;
+  freqEditing = true;
+  const el = document.getElementById('freq-display');
+  const currentFreq = settings.frequency || 0;
+  const val = currentFreq > 0 ? currentFreq.toFixed(4) : '';
+  el.innerHTML = `<input type="number" class="freq-input" id="freq-input" step="0.001" min="24" max="1766" value="${val}" placeholder="390.5250">`;
+  el.onclick = null; // prevent re-entry while editing
+  const input = document.getElementById('freq-input');
+  input.focus();
+  input.select();
+  input.addEventListener('keydown', handleFreqKey);
+  input.addEventListener('blur', () => commitFreqEdit());
+}
+
+function handleFreqKey(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    commitFreqEdit();
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    cancelFreqEdit();
+  }
+}
+
+async function commitFreqEdit() {
+  if (!freqEditing) return;
+  freqEditing = false;
+  const input = document.getElementById('freq-input');
+  if (!input) return;
+  const mhz = parseFloat(input.value);
+  const el = document.getElementById('freq-display');
+  el.onclick = startFreqEdit;
+
+  if (isNaN(mhz) || mhz < 24 || mhz > 1766) {
+    cancelFreqEdit();
+    return;
+  }
+
+  // Show immediately
+  el.innerHTML = mhz.toFixed(4) + '<span class="unit">MHz</span>';
+  settings.frequency = mhz;
+  localStorage.setItem('sigint-settings', JSON.stringify(settings));
+
+  // Tune the SDR
+  try {
+    const r = await fetch(API + '/api/tune', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ frequency: mhz * 1e6 })
+    });
+    if (r.ok) {
+      const data = await r.json();
+      if (data.frequency) {
+        const actual = (data.frequency / 1e6).toFixed(4);
+        el.innerHTML = actual + '<span class="unit">MHz</span>';
+        settings.frequency = data.frequency / 1e6;
+      }
+    }
+  } catch {}
+}
+
+function cancelFreqEdit() {
+  freqEditing = false;
+  const el = document.getElementById('freq-display');
+  el.onclick = startFreqEdit;
+  const mhz = settings.frequency || 0;
+  el.innerHTML = mhz > 0
+    ? mhz.toFixed(4) + '<span class="unit">MHz</span>'
+    : '—<span class="unit">MHz</span>';
+}
+
+async function restartService(name) {
+  if (!confirm('Restart ' + name + '?')) return;
+  try {
+    const r = await fetch(API + '/api/service/' + name + '/restart', { method: 'POST' });
+    if (r.ok) alert(name + ' restarted');
+    else alert('Failed to restart ' + name);
+  } catch { alert('Could not reach server'); }
+}
+
+async function clearDatabase() {
+  if (!confirm('This will permanently delete all captured data. Continue?')) return;
+  try {
+    await fetch(API + '/api/data', { method: 'DELETE' });
+    evtCount = 0; callCount = 0; sdsCount = 0;
+    calls.length = 0; messages.length = 0;
+    document.getElementById('s-events').textContent = '0';
+    document.getElementById('s-calls').textContent = '0';
+    document.getElementById('s-sds').textContent = '0';
+    clearStream();
+  } catch {}
+}
+
+function exportSettings() {
+  const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sigint-settings.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importSettings(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const imported = JSON.parse(reader.result);
+      settings = { ...SETTINGS_DEFAULTS, ...imported };
+      localStorage.setItem('sigint-settings', JSON.stringify(settings));
+      populateSettingsForm();
+      applySettings();
+    } catch { alert('Invalid settings file'); }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+/* ── Init ── */
+loadSettings();
+applySettings();
+
+// Show saved frequency and mode on load
+if (settings.frequency > 0) {
+  document.getElementById('freq-display').innerHTML = settings.frequency.toFixed(4) + '<span class="unit">MHz</span>';
+}
+document.getElementById('mode-select').value = settings.protocol || 'tetra';
+updateStreamVisibility(settings.protocol || 'tetra');
+
+// Poll actual radio state periodically
+async function fetchRadio() {
+  try {
+    const r = await fetch(API + '/api/radio');
+    if (r.ok) {
+      const d = await r.json();
+      if (d.frequency && !freqEditing) {
+        const mhz = d.frequency / 1e6;
+        document.getElementById('freq-display').innerHTML = mhz.toFixed(4) + '<span class="unit">MHz</span>';
+        settings.frequency = mhz;
+        settings.gain = d.gain;
+        settings.ppm = d.ppm;
+      }
+      if (d.mode) {
+        settings.protocol = d.mode;
+        document.getElementById('mode-select').value = d.mode;
+        updateStreamVisibility(d.mode);
+      }
+    }
+  } catch {}
+}
+setInterval(fetchRadio, 15000);
+fetchRadio();
+
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === ',') { e.preventDefault(); toggleSettings(); }
+  if (e.key === 'Escape') {
+    if (freqEditing) cancelFreqEdit();
+    else if (document.getElementById('settings-overlay').classList.contains('open')) closeSettings();
+  }
+});
+
+window.addEventListener('resize', resizeCanvases);
+resizeCanvases();
+updateClock();
+setInterval(updateClock, 1000);
+setInterval(updateRate, 1000);
+setInterval(fetchStatus, 10000);
+setInterval(fetchRecordings, 30000);
+fetchStatus();
+fetchRecordings();
+connect();
+connectFFT();
+animationLoop();
+</script>
+</body>
+</html>
