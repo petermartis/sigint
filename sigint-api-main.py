@@ -5,8 +5,10 @@ import json
 import time
 import os
 import logging
+import uuid
 import xmlrpc.client
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.staticfiles import StaticFiles
@@ -22,6 +24,159 @@ logger = logging.getLogger("tetra.api")
 RADIO_RPC = "http://127.0.0.1:42001"
 RECORDINGS_DIR = "/opt/tetra-scanner/recordings"
 WEB_DIR = "/opt/tetra-scanner/web"
+SCAN_LIST_FILE = "/opt/tetra-scanner/etc/scan-list.json"
+
+# ─── Scan Engine State ───
+scan_entries: list[dict] = []      # [{id, label, frequency, mode, squelch, locked_out}]
+scan_active: bool = False
+scan_task: asyncio.Task | None = None
+scan_index: int = 0
+scan_current_entry: dict | None = None
+scan_signal_level: float = -120.0
+scan_dwelling: bool = False
+
+# Scan config defaults
+SCAN_DEFAULTS = {
+    "squelch": -50.0,       # dB threshold
+    "dwell": 2.0,           # seconds to hold after signal lost
+    "hysteresis": 6.0,      # dB below squelch to declare signal lost
+    "settle": 0.15,         # seconds to wait after retune before reading level
+}
+scan_config: dict = {**SCAN_DEFAULTS}
+
+
+def _load_scan_list():
+    """Load scan list from JSON file."""
+    global scan_entries
+    try:
+        p = Path(SCAN_LIST_FILE)
+        if p.exists():
+            data = json.loads(p.read_text())
+            scan_entries = data.get("entries", [])
+            scan_config.update({k: v for k, v in data.get("config", {}).items() if k in SCAN_DEFAULTS})
+            logger.info(f"Loaded {len(scan_entries)} scan entries")
+    except Exception as e:
+        logger.warning(f"Could not load scan list: {e}")
+
+
+def _save_scan_list():
+    """Persist scan list to JSON file."""
+    try:
+        p = Path(SCAN_LIST_FILE)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps({"entries": scan_entries, "config": scan_config}, indent=2))
+    except Exception as e:
+        logger.warning(f"Could not save scan list: {e}")
+
+
+async def _broadcast_scan(action: str, **extra):
+    """Send scan state update to all WS clients."""
+    msg = json.dumps({"_scan": True, "action": action, "ts": time.time(), **extra})
+    dead = set()
+    for ws in ws_clients:
+        try:
+            await ws.send_text(msg)
+        except Exception:
+            dead.add(ws)
+    ws_clients -= dead
+
+
+async def _scan_loop():
+    """Core scan loop — runs as an asyncio task."""
+    global scan_active, scan_index, scan_current_entry, scan_signal_level, scan_dwelling
+
+    await _broadcast_scan("started")
+    logger.info("Scan started")
+
+    while scan_active:
+        if not scan_entries:
+            await asyncio.sleep(0.5)
+            continue
+
+        # Find next non-locked-out entry
+        attempts = 0
+        while attempts < len(scan_entries):
+            scan_index = scan_index % len(scan_entries)
+            entry = scan_entries[scan_index]
+            if not entry.get("locked_out", False):
+                break
+            scan_index = (scan_index + 1) % len(scan_entries)
+            attempts += 1
+        else:
+            # All locked out
+            await asyncio.sleep(0.5)
+            continue
+
+        scan_current_entry = entry
+        freq_hz = float(entry["frequency"])
+        mode = entry.get("mode", None)
+        squelch = float(entry.get("squelch", scan_config["squelch"]))
+
+        # Retune SDR
+        try:
+            rpc = xmlrpc.client.ServerProxy(RADIO_RPC)
+            await asyncio.to_thread(rpc.set_freq, freq_hz)
+            if mode:
+                await asyncio.to_thread(rpc.set_mode, mode)
+        except Exception as e:
+            logger.error(f"Scan retune error: {e}")
+            await asyncio.sleep(1)
+            scan_index = (scan_index + 1) % len(scan_entries)
+            continue
+
+        # Wait for settle
+        await asyncio.sleep(scan_config["settle"])
+        if not scan_active:
+            break
+
+        # Read signal level
+        try:
+            rpc = xmlrpc.client.ServerProxy(RADIO_RPC)
+            level = await asyncio.to_thread(rpc.get_signal_level)
+            scan_signal_level = float(level)
+        except Exception:
+            scan_signal_level = -120.0
+
+        if scan_signal_level > squelch:
+            # ── Signal found: dwell ──
+            scan_dwelling = True
+            await _broadcast_scan("hit",
+                entry=entry, index=scan_index, level=scan_signal_level)
+
+            # Hold on this frequency while signal persists
+            drop_threshold = squelch - scan_config["hysteresis"]
+            while scan_active:
+                await asyncio.sleep(0.3)
+                try:
+                    rpc = xmlrpc.client.ServerProxy(RADIO_RPC)
+                    level = await asyncio.to_thread(rpc.get_signal_level)
+                    scan_signal_level = float(level)
+                except Exception:
+                    scan_signal_level = -120.0
+
+                if scan_signal_level < drop_threshold:
+                    break
+
+            if not scan_active:
+                break
+
+            # Post-signal dwell
+            await _broadcast_scan("dwell", entry=entry, index=scan_index)
+            await asyncio.sleep(scan_config["dwell"])
+            scan_dwelling = False
+
+            if not scan_active:
+                break
+
+            await _broadcast_scan("resume", index=scan_index)
+
+        # Advance to next entry
+        scan_index = (scan_index + 1) % len(scan_entries)
+
+    scan_dwelling = False
+    scan_current_entry = None
+    await _broadcast_scan("stopped")
+    logger.info("Scan stopped")
 
 
 async def persist_frame(frame: dict):
@@ -87,11 +242,16 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown."""
     await init_db()
     set_db_callback(persist_frame)
+    _load_scan_list()
     udp_transport = await start_udp_listener(42100)
     audio_transport = await start_audio_listener(42002)
     fft_transport = await start_fft_listener(42003)
     logger.info("TETRA Scanner API started")
     yield
+    global scan_active, scan_task
+    scan_active = False
+    if scan_task:
+        scan_task.cancel()
     udp_transport.close()
     fft_transport.close()
     logger.info("TETRA Scanner API stopped")
@@ -315,6 +475,132 @@ def set_radio_mode(body: dict):
         return {"mode": result}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=503)
+
+
+# ─── Scan API ───
+
+@app.get("/api/scan/list")
+def get_scan_list():
+    """Return all scan entries + config."""
+    return {"entries": scan_entries, "config": scan_config}
+
+
+@app.post("/api/scan/list")
+def add_scan_entry(body: dict):
+    """Add a new scan entry."""
+    entry = {
+        "id": str(uuid.uuid4())[:8],
+        "label": body.get("label", f"CH{len(scan_entries)+1}"),
+        "frequency": float(body["frequency"]),
+        "mode": body.get("mode", None),
+        "squelch": float(body.get("squelch", scan_config["squelch"])),
+        "locked_out": False,
+    }
+    scan_entries.append(entry)
+    _save_scan_list()
+    return entry
+
+
+@app.put("/api/scan/list/{entry_id}")
+def update_scan_entry(entry_id: str, body: dict):
+    """Update an existing scan entry."""
+    for e in scan_entries:
+        if e["id"] == entry_id:
+            for k in ("label", "frequency", "mode", "squelch", "locked_out"):
+                if k in body:
+                    e[k] = body[k]
+            _save_scan_list()
+            return e
+    return JSONResponse({"error": "not found"}, status_code=404)
+
+
+@app.delete("/api/scan/list/{entry_id}")
+def delete_scan_entry(entry_id: str):
+    """Remove a scan entry."""
+    global scan_entries
+    before = len(scan_entries)
+    scan_entries = [e for e in scan_entries if e["id"] != entry_id]
+    _save_scan_list()
+    return {"deleted": before != len(scan_entries)}
+
+
+@app.post("/api/scan/config")
+def update_scan_config(body: dict):
+    """Update scan config (squelch, dwell, hysteresis, settle)."""
+    for k in SCAN_DEFAULTS:
+        if k in body:
+            scan_config[k] = float(body[k])
+    _save_scan_list()
+    return scan_config
+
+
+@app.get("/api/scan/status")
+def get_scan_status():
+    """Return current scan state."""
+    return {
+        "active": scan_active,
+        "dwelling": scan_dwelling,
+        "index": scan_index,
+        "entry": scan_current_entry,
+        "signal_level": scan_signal_level,
+        "config": scan_config,
+        "total": len(scan_entries),
+    }
+
+
+@app.post("/api/scan/start")
+async def start_scan(body: dict = None):
+    """Start the scan loop."""
+    global scan_active, scan_task, scan_index
+    if scan_active:
+        return {"status": "already_running"}
+    if not scan_entries:
+        return JSONResponse({"error": "scan list is empty"}, status_code=400)
+    # Optional config overrides
+    if body:
+        for k in SCAN_DEFAULTS:
+            if k in body:
+                scan_config[k] = float(body[k])
+    scan_active = True
+    scan_index = 0
+    scan_task = asyncio.create_task(_scan_loop())
+    return {"status": "started"}
+
+
+@app.post("/api/scan/stop")
+async def stop_scan():
+    """Stop the scan loop."""
+    global scan_active, scan_task
+    scan_active = False
+    if scan_task:
+        try:
+            await asyncio.wait_for(scan_task, timeout=5)
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            pass
+        scan_task = None
+    return {"status": "stopped"}
+
+
+@app.post("/api/scan/skip")
+async def skip_scan():
+    """Skip to the next scan entry."""
+    global scan_index, scan_dwelling
+    if scan_active and scan_entries:
+        scan_dwelling = False
+        scan_index = (scan_index + 1) % len(scan_entries)
+        return {"status": "skipped", "index": scan_index}
+    return {"status": "not_scanning"}
+
+
+@app.post("/api/scan/lockout/{entry_id}")
+def toggle_lockout(entry_id: str):
+    """Toggle lockout on a scan entry."""
+    for e in scan_entries:
+        if e["id"] == entry_id:
+            e["locked_out"] = not e.get("locked_out", False)
+            _save_scan_list()
+            return e
+    return JSONResponse({"error": "not found"}, status_code=404)
 
 
 # Serve the web UI if it exists

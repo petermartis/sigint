@@ -1,6 +1,6 @@
 # Sigint — Autonomous Radio Scanner & Decoder
 
-**Sigint** is a full-stack software-defined radio (SDR) scanner and protocol decoder built for the Raspberry Pi 3. It combines an RTL-SDR receiver with GNU Radio signal processing, protocol-specific decoders, and a real-time web dashboard for monitoring, analysis, and recording of radio communications.
+**Sigint** is a full-stack software-defined radio (SDR) scanner and protocol decoder built for the Raspberry Pi. It combines an RTL-SDR receiver with GNU Radio signal processing, protocol-specific decoders, a frequency scanner, and a real-time web dashboard for monitoring, analysis, and recording of radio communications.
 
 ## Table of Contents
 
@@ -12,6 +12,7 @@
 - [Configuration](#configuration)
 - [Web UI Guide](#web-ui-guide)
 - [REST API Reference](#rest-api-reference)
+- [Frequency Scanner](#frequency-scanner)
 - [WebSocket Streams](#websocket-streams)
 - [Service Management](#service-management)
 - [Troubleshooting](#troubleshooting)
@@ -26,7 +27,7 @@ Sigint operates as three coordinated services on the Raspberry Pi:
 2. **tetra-decoder** — tetra-kit process that decodes TETRA protocol frames from demodulated symbols.
 3. **tetra-api** — FastAPI server providing REST endpoints, WebSocket streams, SQLite persistence, and the web UI.
 
-The system supports 7 demodulation modes switchable at runtime without restarting services.
+The system supports 7 demodulation modes switchable at runtime without restarting services, and includes a built-in frequency scanner that automatically steps through saved channels, stopping on active signals.
 
 ---
 
@@ -203,13 +204,14 @@ RTL-SDR USB → GNU Radio Flowgraph → Demodulator → UDP Streams → API Serv
 ├── bin/
 │   └── tetra_rx_headless.py      # GNU Radio SDR flowgraph
 ├── api/
-│   ├── main.py                   # FastAPI server
+│   ├── main.py                   # FastAPI server (+ scan engine)
 │   ├── ingestor.py               # UDP → WebSocket bridge
 │   └── database.py               # SQLite schema & helpers
 ├── web/
 │   └── index.html                # Sigint dashboard (single-file SPA)
 ├── etc/
-│   └── tetra-scanner.conf        # Runtime configuration
+│   ├── tetra-scanner.conf        # Runtime configuration
+│   └── scan-list.json            # Saved scan channels & config (auto-created)
 ├── data/
 │   └── tetra_scanner.db          # SQLite database
 └── recordings/                   # Saved audio files
@@ -440,6 +442,10 @@ Access the dashboard at `http://<raspberry-pi-ip>/` (port 80)
 - **Connection indicator** — Green dot = connected, red = disconnected
 - **Frequency display** — Click to retune; enter new frequency in MHz
 - **Mode selector** — Dropdown to switch demodulation protocol (TETRA / DMR / P25 / NXDN / dPMR / FM / AM)
+- **+ CH** — Quick-save the current frequency and mode as a scan channel. Opens a small popover where you can name the channel, then press Enter or click Save. A toast notification confirms the save.
+- **Scan** — Start/stop the frequency scanner. When scanning, the button pulses amber and shows "Stop". Turns green when dwelling on an active signal. If no channels are saved, shows a toast hint.
+- **Skip** — Appears during scanning; advances to the next channel immediately.
+- **Scan indicator** — Shows the current channel label and signal level during scanning.
 - **Pause / Clear / Record** — Control event stream capture and audio recording
 - **Settings gear** — Open full settings panel
 
@@ -465,14 +471,15 @@ Access the dashboard at `http://<raspberry-pi-ip>/` (port 80)
 
 ### Settings Panel
 
-Six configuration sections:
+Seven configuration sections:
 
 1. **Receiver** — Frequency, gain, PPM, sample rate, AGC, DC offset, bias tee
 2. **Decoder** — Protocol selection, timeslot filter, FEC, voice/SDS decoding toggles
-3. **Display** — Spectrum color, peak hold, grid lines, dB scale, waterfall colormap/speed, max events
-4. **Storage** — Recording directory, format (WAV/FLAC/OGG), auto-record, retention limits
-5. **Connection** — API host, WebSocket reconnect, polling intervals
-6. **System** — Service restart controls, log viewer, database management
+3. **Scanner** — Scan list editor (label, frequency, mode, squelch, lockout per channel), default squelch slider, dwell time, hysteresis, settle time. Channels can also be added quickly from the topbar `+ CH` button.
+4. **Display** — Spectrum color, peak hold, grid lines, dB scale, waterfall colormap/speed, max events
+5. **Storage** — Recording directory, format (WAV/FLAC/OGG), auto-record, retention limits
+6. **Connection** — API host, WebSocket reconnect, polling intervals
+7. **System** — Service restart controls, log viewer, database management
 
 ---
 
@@ -562,6 +569,134 @@ Download a specific recording file.
 
 ---
 
+## Frequency Scanner
+
+Sigint includes a built-in frequency scanner that cycles through a user-defined channel list, automatically stopping on active signals. The scanner operates as an async task in the API server, retuning the SDR via XML-RPC and reading signal levels from the GNU Radio FFT probe.
+
+### Workflow
+
+1. **Save channels** — Tune to a frequency, click **+ CH** in the topbar, name it, press Enter. Repeat for all frequencies of interest.
+2. **Start scanning** — Click **Scan** in the topbar. The scanner steps through saved channels.
+3. **Signal detection** — When signal power exceeds the squelch threshold, the scanner stops and dwells on that channel.
+4. **Auto-resume** — When the signal drops below the threshold (minus hysteresis) for longer than the dwell time, scanning resumes.
+5. **Skip / Lockout** — Click **Skip** to advance manually. Toggle **Lockout** in Settings → Scanner to permanently skip a channel.
+
+### Scan Algorithm
+
+```
+for each channel (skipping locked-out entries):
+    retune SDR to channel frequency
+    switch mode if channel specifies one
+    wait settle_time (150ms default)
+    read signal level from FFT probe
+    if signal_level > squelch_threshold:
+        DWELL: hold on frequency, broadcast "hit" to UI
+        poll signal level every 300ms
+        when signal < (squelch - hysteresis):
+            wait dwell_time (2s default)
+            resume scanning
+    advance to next channel
+```
+
+### Scan Configuration
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| **Squelch** | -50 dB | Signal power threshold to stop scanning |
+| **Dwell** | 2.0 sec | Hold time after signal lost before resuming |
+| **Hysteresis** | 6 dB | Below squelch to declare signal truly gone |
+| **Settle** | 150 ms | Wait after retune before reading signal level |
+
+Configurable in Settings → Scanner, or via `POST /api/scan/config`.
+
+### Scan Channel Storage
+
+Channels are persisted to `/opt/tetra-scanner/etc/scan-list.json` (auto-created on first save). Each entry stores:
+
+- `id` — Unique 8-character identifier
+- `label` — User-defined name (e.g., "POLICE", "FIRE")
+- `frequency` — Center frequency in Hz
+- `mode` — Demodulation mode (null = keep current mode)
+- `squelch` — Per-channel squelch override (dB)
+- `locked_out` — Skip during scanning (boolean)
+
+### Scan API Endpoints
+
+#### GET /api/scan/list
+
+Return all scan entries and config.
+
+**Response:**
+```json
+{
+  "entries": [
+    {"id": "a1b2c3d4", "label": "POLICE", "frequency": 390525000, "mode": "tetra", "squelch": -50, "locked_out": false}
+  ],
+  "config": {"squelch": -50, "dwell": 2.0, "hysteresis": 6, "settle": 0.15}
+}
+```
+
+#### POST /api/scan/list
+
+Add a new scan entry.
+
+**Request:**
+```json
+{"label": "FIRE", "frequency": 391050000, "mode": "tetra", "squelch": -45}
+```
+
+#### PUT /api/scan/list/{id}
+
+Update an existing entry. Body may contain any subset of: `label`, `frequency`, `mode`, `squelch`, `locked_out`.
+
+#### DELETE /api/scan/list/{id}
+
+Remove a scan entry.
+
+#### POST /api/scan/config
+
+Update scan settings.
+
+**Request:**
+```json
+{"squelch": -45, "dwell": 3.0, "hysteresis": 8, "settle": 0.2}
+```
+
+#### POST /api/scan/start
+
+Start the scan loop. Returns 400 if the scan list is empty.
+
+#### POST /api/scan/stop
+
+Stop the scan loop.
+
+#### GET /api/scan/status
+
+Current scan state.
+
+**Response:**
+```json
+{
+  "active": true,
+  "dwelling": false,
+  "index": 2,
+  "entry": {"id": "a1b2c3d4", "label": "POLICE", "frequency": 390525000, ...},
+  "signal_level": -62.3,
+  "config": {"squelch": -50, "dwell": 2.0, ...},
+  "total": 5
+}
+```
+
+#### POST /api/scan/skip
+
+Skip to the next channel during scanning.
+
+#### POST /api/scan/lockout/{id}
+
+Toggle lockout on a scan entry.
+
+---
+
 ## WebSocket Streams
 
 ### /ws — Event Stream
@@ -575,6 +710,18 @@ Binary frames of 16-bit signed PCM audio at 16 kHz sample rate. Audio is resampl
 ### /ws/fft — Spectrum Data
 
 Binary frames of 256 × float32 values representing FFT power spectrum in dB. Data arrives at ~15 fps. The UI performs FFT-shift (swap halves) to center DC. Calibrated with -80 dB offset for realistic spectrum analyzer readings.
+
+### Scan Events (via /ws)
+
+When the frequency scanner is running, scan state changes are broadcast as JSON text frames on the main `/ws` endpoint. These messages have `"_scan": true` and an `action` field:
+
+- `{"_scan": true, "action": "started"}` — Scan loop began
+- `{"_scan": true, "action": "hit", "entry": {...}, "level": -42.3}` — Signal detected, dwelling
+- `{"_scan": true, "action": "dwell", "entry": {...}}` — Signal lost, post-dwell countdown
+- `{"_scan": true, "action": "resume"}` — Resuming scan after dwell
+- `{"_scan": true, "action": "stopped"}` — Scan loop ended
+
+The UI distinguishes scan messages from decoded protocol frames via the `_scan` field.
 
 ---
 
@@ -593,11 +740,14 @@ sudo systemctl stop tetra-sdr tetra-api tetra-decoder
 # Deploy updated files (replace IP with your RPi address)
 scp tetra_rx_headless.py admin@192.168.3.217:/opt/tetra-scanner/bin/
 scp sigint-api-main.py admin@192.168.3.217:/opt/tetra-scanner/api/main.py
+scp sigint-ingestor.py admin@192.168.3.217:/opt/tetra-scanner/api/ingestor.py
 scp sigint-ui.html admin@192.168.3.217:/opt/tetra-scanner/web/index.html
 
 # Restart services
 ssh admin@192.168.3.217 'sudo systemctl restart tetra-sdr tetra-api'
 ```
+
+Note: The scan channel list (`/opt/tetra-scanner/etc/scan-list.json`) is auto-created when you first save a channel from the UI. It persists across service restarts.
 
 ### Viewing Logs
 

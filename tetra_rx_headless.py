@@ -209,6 +209,24 @@ class TetraReceiver(gr.top_block):
     def get_mode(self):
         return self.mode
 
+    def get_signal_level(self):
+        """Return current peak signal power (dB) in center 20% of FFT spectrum."""
+        try:
+            iq = self.fft_probe.level()
+            if len(iq) != 256:
+                return -120.0
+            samples = np.array(iq, dtype=np.complex64)
+            windowed = samples * np.hamming(256).astype(np.float32)
+            spectrum = np.fft.fft(windowed)
+            power = np.abs(spectrum) ** 2
+            power = np.maximum(power, 1e-20)
+            db = 10.0 * np.log10(power) - 80.0
+            center_start = int(256 * 0.4)
+            center_end = int(256 * 0.6)
+            return float(np.max(db[center_start:center_end]))
+        except Exception:
+            return -120.0
+
 
 def main():
     parser = argparse.ArgumentParser(description="TETRA Headless SDR Receiver")
@@ -273,6 +291,7 @@ def main():
     rpc.register_function(tb.set_ppm, "set_ppm")
     rpc.register_function(tb.get_mode, "get_mode")
     rpc.register_function(tb.set_mode, "set_mode")
+    rpc.register_function(tb.get_signal_level, "get_signal_level")
     threading.Thread(target=rpc.serve_forever, daemon=True).start()
     print(f"XML-RPC control on 127.0.0.1:{args.rpc_port}")
 

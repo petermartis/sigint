@@ -979,6 +979,270 @@ body {
   .settings-nav { display: none; }
 }
 
+/* ── Scan UI ── */
+.scan-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--amber);
+  -webkit-app-region: no-drag;
+  white-space: nowrap;
+}
+
+.scan-indicator .scan-ch {
+  color: var(--text-0);
+  font-weight: 600;
+}
+
+.scan-indicator .scan-level {
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.tb-btn.scanning {
+  background: var(--amber-dim);
+  color: var(--amber);
+  border-color: rgba(245,158,11,0.3);
+  animation: scan-pulse 1.2s ease-in-out infinite;
+}
+
+.tb-btn.scan-hit {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: rgba(34,197,94,0.3);
+}
+
+@keyframes scan-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ── Scan List Editor (Settings) ── */
+.scan-list-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.scan-list-table th {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.scan-list-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.scan-list-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+.scan-list-table input, .scan-list-table select {
+  background: var(--bg-2);
+  border: 1px solid var(--border-bright);
+  border-radius: 4px;
+  color: var(--text-0);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 4px 6px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.scan-list-table input:focus, .scan-list-table select:focus {
+  border-color: var(--accent);
+}
+
+.scan-list-table input[type=text] { width: 80px; }
+.scan-list-table input[type=number] { width: 90px; }
+.scan-list-table select { padding: 4px 20px 4px 6px; cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23707088' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 4px center;
+}
+.scan-list-table select option { background: var(--bg-1); color: var(--text-0); }
+
+.scan-del-btn {
+  width: 22px; height: 22px;
+  border-radius: 4px; border: 1px solid transparent;
+  background: none; color: var(--text-3);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.scan-del-btn:hover { color: var(--rose); border-color: rgba(244,63,94,0.3); background: var(--rose-dim); }
+.scan-del-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+.scan-lockout-btn {
+  width: 22px; height: 22px;
+  border-radius: 4px; border: 1px solid transparent;
+  background: none; color: var(--text-3);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; font-family: var(--mono);
+  transition: all var(--transition);
+}
+.scan-lockout-btn.locked { color: var(--rose); border-color: rgba(244,63,94,0.3); background: var(--rose-dim); }
+
+.scan-add-row {
+  padding: 8px 20px;
+}
+
+.scan-add-btn {
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-bright);
+  background: none;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all var(--transition);
+  display: flex; align-items: center; gap: 4px;
+}
+.scan-add-btn:hover { color: var(--accent); border-color: rgba(34,197,94,0.3); background: var(--accent-dim); }
+.scan-add-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+/* ── Quick-Save Channel Popover ── */
+.ch-popover-anchor { position: relative; -webkit-app-region: no-drag; }
+
+.ch-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 260px;
+  background: var(--bg-1);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+  z-index: 150;
+  padding: 12px;
+  display: none;
+  animation: pop-in 150ms cubic-bezier(0.16,1,0.3,1);
+}
+.ch-popover.open { display: block; }
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-4px) scale(0.97); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+.ch-popover::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 8px; height: 8px;
+  background: var(--bg-1);
+  border-top: 1px solid var(--border-bright);
+  border-left: 1px solid var(--border-bright);
+}
+
+.ch-pop-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ch-pop-row:last-child { margin-bottom: 0; }
+
+.ch-pop-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  width: 42px;
+  flex-shrink: 0;
+}
+
+.ch-pop-val {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-0);
+  font-weight: 600;
+}
+
+.ch-pop-mode {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--cyan);
+  background: var(--cyan-dim);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.ch-pop-input {
+  flex: 1;
+  padding: 6px 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-sm);
+  color: var(--text-0);
+  font-family: var(--mono);
+  font-size: 12px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.ch-pop-input:focus { border-color: var(--accent); }
+
+.ch-pop-save {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.ch-pop-save:hover { filter: brightness(1.1); box-shadow: 0 0 12px var(--accent-glow); }
+
+/* ── Toast ── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--bg-2);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-0);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  z-index: 300;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms, transform 200ms;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.toast .toast-icon {
+  color: var(--accent);
+  font-size: 14px;
+}
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .main { grid-template-columns: 1fr; }
@@ -1020,6 +1284,45 @@ body {
       <option value="analog_fm">FM</option>
       <option value="analog_am">AM</option>
     </select>
+
+    <div class="topbar-sep"></div>
+
+    <div class="ch-popover-anchor">
+      <button class="tb-btn" id="btn-save-ch" onclick="toggleChPopover()" title="Save current frequency as scan channel">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+        CH
+      </button>
+      <div class="ch-popover" id="ch-popover">
+        <div class="ch-pop-row">
+          <span class="ch-pop-label">Freq</span>
+          <span class="ch-pop-val" id="ch-pop-freq">—</span>
+          <span class="ch-pop-mode" id="ch-pop-mode">TETRA</span>
+        </div>
+        <div class="ch-pop-row">
+          <span class="ch-pop-label">Label</span>
+          <input type="text" class="ch-pop-input" id="ch-pop-label" placeholder="Channel name" maxlength="24">
+        </div>
+        <div class="ch-pop-row" style="justify-content:flex-end">
+          <span style="font-size:10px;color:var(--text-3);flex:1" id="ch-pop-count"></span>
+          <button class="ch-pop-save" id="ch-pop-save" onclick="saveChannelQuick()">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="tb-btn" id="btn-scan" onclick="toggleScan()" title="Frequency scanner">
+      <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+      Scan
+    </button>
+
+    <button class="tb-btn" id="btn-skip" onclick="skipScan()" style="display:none" title="Skip to next channel">
+      <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M21 16V8"/><polygon points="5,4 15,12 5,20" fill="none" stroke="currentColor" stroke-width="2"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"/></svg>
+      Skip
+    </button>
+
+    <span class="scan-indicator" id="scan-indicator" style="display:none">
+      <span class="scan-ch" id="scan-ch-label">—</span>
+      <span class="scan-level" id="scan-level">—</span>
+    </span>
 
     <div class="topbar-controls">
       <button class="tb-btn" id="btn-pause" onclick="togglePause()">
@@ -1177,6 +1480,9 @@ body {
   </div>
 </div>
 
+<!-- ── Toast ── -->
+<div class="toast" id="toast"><span class="toast-icon">✓</span><span id="toast-msg">Saved</span></div>
+
 <!-- ═══ Settings Overlay ═══ -->
 <div class="settings-overlay" id="settings-overlay" onclick="if(event.target===this)closeSettings()">
   <div class="settings-panel">
@@ -1184,6 +1490,7 @@ body {
       <div class="settings-nav-title">Settings</div>
       <button class="settings-nav-item active" onclick="showSettingsSection('receiver',this)">Receiver</button>
       <button class="settings-nav-item" onclick="showSettingsSection('decoder',this)">Decoder</button>
+      <button class="settings-nav-item" onclick="showSettingsSection('scanner',this)">Scanner</button>
       <button class="settings-nav-item" onclick="showSettingsSection('display',this)">Display</button>
       <button class="settings-nav-item" onclick="showSettingsSection('storage',this)">Storage</button>
       <button class="settings-nav-item" onclick="showSettingsSection('connection',this)">Connection</button>
@@ -1277,6 +1584,47 @@ body {
           <div class="set-row">
             <div class="set-label"><div class="set-name">SDS / Message Decoding</div><div class="set-desc">Decode short data service messages</div></div>
             <div class="set-control"><button class="set-toggle on" data-key="sdsDecode" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+        </div>
+
+        <!-- Scanner -->
+        <div class="settings-section" id="sec-scanner">
+          <div class="set-group-label">Scan List</div>
+          <div style="padding:0 20px 8px">
+            <table class="scan-list-table" id="scan-list-table">
+              <thead><tr><th>Label</th><th>Frequency</th><th>Mode</th><th>Squelch</th><th></th><th></th></tr></thead>
+              <tbody id="scan-list-body">
+                <tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:16px">No channels — add one below</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="scan-add-row">
+            <button class="scan-add-btn" onclick="addScanEntryUI()">
+              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+              Add Channel
+            </button>
+          </div>
+          <div class="set-sep"></div>
+          <div class="set-group-label">Scan Settings</div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Default Squelch</div><div class="set-desc">Signal threshold to stop scanning (dB)</div></div>
+            <div class="set-control"><input type="range" class="set-range" id="scan-squelch" min="-90" max="-10" step="1" value="-50" oninput="this.nextElementSibling.textContent=this.value"><span class="set-unit" style="min-width:36px;text-align:right">-50</span><span class="set-unit">dB</span></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Dwell Time</div><div class="set-desc">Hold time after signal lost before resuming</div></div>
+            <div class="set-control"><input type="number" class="set-input" id="scan-dwell" min="0.5" max="30" step="0.5" value="2"><span class="set-unit">sec</span></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Hysteresis</div><div class="set-desc">dB below squelch threshold to declare signal lost</div></div>
+            <div class="set-control"><input type="number" class="set-input" id="scan-hysteresis" min="1" max="20" step="1" value="6"><span class="set-unit">dB</span></div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><div class="set-name">Settle Time</div><div class="set-desc">Wait after retune before reading signal level</div></div>
+            <div class="set-control"><input type="number" class="set-input" id="scan-settle" min="0.05" max="1" step="0.05" value="0.15"><span class="set-unit">sec</span></div>
+          </div>
+          <div class="set-sep"></div>
+          <div class="scan-add-row" style="display:flex;gap:8px">
+            <button class="set-btn-primary" onclick="saveScanConfig()">Save Scan Settings</button>
           </div>
         </div>
 
@@ -2024,7 +2372,10 @@ function connect() {
     document.getElementById('conn-label').style.color = 'var(--accent)';
   };
   ws.onmessage = (e) => {
-    try { addEvent(JSON.parse(e.data)); } catch {}
+    try {
+      const msg = JSON.parse(e.data);
+      if (!handleScanMessage(msg)) addEvent(msg);
+    } catch {}
   };
   ws.onclose = () => {
     document.getElementById('conn-dot').classList.remove('live');
@@ -2341,6 +2692,326 @@ function importSettings(input) {
   input.value = '';
 }
 
+/* ── Quick-Save Channel + Toast ── */
+let chPopoverOpen = false;
+
+function toggleChPopover() {
+  const pop = document.getElementById('ch-popover');
+  if (chPopoverOpen) {
+    closeChPopover();
+  } else {
+    // Pre-fill with current state
+    const freq = settings.frequency || 0;
+    const mode = (settings.protocol || 'tetra').toUpperCase().replace('ANALOG_', '');
+    document.getElementById('ch-pop-freq').textContent = freq > 0 ? freq.toFixed(4) + ' MHz' : '\u2014';
+    document.getElementById('ch-pop-mode').textContent = mode;
+    document.getElementById('ch-pop-label').value = 'CH' + (scanEntries.length + 1);
+    document.getElementById('ch-pop-count').textContent = scanEntries.length + ' saved';
+    pop.classList.add('open');
+    chPopoverOpen = true;
+    // Focus label input
+    setTimeout(() => {
+      const inp = document.getElementById('ch-pop-label');
+      inp.focus();
+      inp.select();
+    }, 50);
+  }
+}
+
+function closeChPopover() {
+  document.getElementById('ch-popover').classList.remove('open');
+  chPopoverOpen = false;
+}
+
+async function saveChannelQuick() {
+  const label = document.getElementById('ch-pop-label').value.trim() || ('CH' + (scanEntries.length + 1));
+  const freq = settings.frequency || 0;
+  const mode = settings.protocol || null;
+  if (freq <= 0) { closeChPopover(); return; }
+
+  try {
+    const r = await fetch(API + '/api/scan/list', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        label: label,
+        frequency: freq * 1e6,
+        mode: mode,
+        squelch: scanConfig.squelch,
+      })
+    });
+    if (r.ok) {
+      await fetchScanList();
+      closeChPopover();
+      showToast('\u2713 Channel \"' + escHtml(label) + '\" saved \u2014 ' + freq.toFixed(4) + ' MHz');
+    }
+  } catch {}
+}
+
+function showToast(msg, duration) {
+  const el = document.getElementById('toast');
+  document.getElementById('toast-msg').innerHTML = msg;
+  el.classList.add('show');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => el.classList.remove('show'), duration || 2500);
+}
+
+// Close popover on click outside
+document.addEventListener('click', (e) => {
+  if (chPopoverOpen && !e.target.closest('.ch-popover-anchor')) {
+    closeChPopover();
+  }
+});
+
+// Enter to save in popover
+document.addEventListener('keydown', (e) => {
+  if (chPopoverOpen && e.key === 'Enter' && document.activeElement?.id === 'ch-pop-label') {
+    e.preventDefault();
+    saveChannelQuick();
+  }
+  if (chPopoverOpen && e.key === 'Escape') {
+    closeChPopover();
+  }
+});
+
+/* ══════════════════════════════════════════════════════════
+   SCAN ENGINE — UI
+   ══════════════════════════════════════════════════════════ */
+
+let scanActive = false;
+let scanEntries = [];
+let scanConfig = { squelch: -50, dwell: 2, hysteresis: 6, settle: 0.15 };
+let scanCurrent = null;   // current entry being scanned
+let scanPollTimer = null;
+
+async function fetchScanList() {
+  try {
+    const r = await fetch(API + '/api/scan/list');
+    if (r.ok) {
+      const d = await r.json();
+      scanEntries = d.entries || [];
+      scanConfig = { ...scanConfig, ...d.config };
+      renderScanListEditor();
+      populateScanConfigUI();
+    }
+  } catch {}
+}
+
+function renderScanListEditor() {
+  const tbody = document.getElementById('scan-list-body');
+  if (!tbody) return;
+  if (scanEntries.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:16px">No channels \u2014 add one below</td></tr>';
+    return;
+  }
+  tbody.innerHTML = scanEntries.map((e, i) => `
+    <tr data-id="${e.id}">
+      <td><input type="text" value="${escHtml(e.label||'')}" onchange="updateScanEntry('${e.id}','label',this.value)"></td>
+      <td><input type="number" step="0.001" min="24" max="1766" value="${(e.frequency/1e6).toFixed(4)}" onchange="updateScanEntry('${e.id}','frequency',parseFloat(this.value)*1e6)"></td>
+      <td><select onchange="updateScanEntry('${e.id}','mode',this.value||null)">
+        <option value=""${!e.mode?' selected':''}>Auto</option>
+        <option value="tetra"${e.mode==='tetra'?' selected':''}>TETRA</option>
+        <option value="dmr"${e.mode==='dmr'?' selected':''}>DMR</option>
+        <option value="p25"${e.mode==='p25'?' selected':''}>P25</option>
+        <option value="nxdn"${e.mode==='nxdn'?' selected':''}>NXDN</option>
+        <option value="dpmr"${e.mode==='dpmr'?' selected':''}>dPMR</option>
+        <option value="analog_fm"${e.mode==='analog_fm'?' selected':''}>FM</option>
+        <option value="analog_am"${e.mode==='analog_am'?' selected':''}>AM</option>
+      </select></td>
+      <td><input type="number" step="1" min="-90" max="-10" value="${e.squelch}" onchange="updateScanEntry('${e.id}','squelch',parseFloat(this.value))" style="width:60px"></td>
+      <td><button class="scan-lockout-btn${e.locked_out?' locked':''}" onclick="toggleScanLockout('${e.id}')" title="Toggle lockout">${e.locked_out?'L/O':'\u2714'}</button></td>
+      <td><button class="scan-del-btn" onclick="deleteScanEntry('${e.id}')" title="Delete"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button></td>
+    </tr>
+  `).join('');
+}
+
+function populateScanConfigUI() {
+  const sq = document.getElementById('scan-squelch');
+  const dw = document.getElementById('scan-dwell');
+  const hy = document.getElementById('scan-hysteresis');
+  const st = document.getElementById('scan-settle');
+  if (sq) { sq.value = scanConfig.squelch; sq.nextElementSibling.textContent = scanConfig.squelch; }
+  if (dw) dw.value = scanConfig.dwell;
+  if (hy) hy.value = scanConfig.hysteresis;
+  if (st) st.value = scanConfig.settle;
+}
+
+async function addScanEntryUI() {
+  const freq = settings.frequency || 390.525;
+  const mode = settings.protocol || null;
+  try {
+    const r = await fetch(API + '/api/scan/list', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        label: 'CH' + (scanEntries.length + 1),
+        frequency: freq * 1e6,
+        mode: mode,
+        squelch: scanConfig.squelch,
+      })
+    });
+    if (r.ok) await fetchScanList();
+  } catch {}
+}
+
+async function updateScanEntry(id, key, value) {
+  try {
+    const body = {};
+    body[key] = value;
+    await fetch(API + '/api/scan/list/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    // Update local state
+    const e = scanEntries.find(x => x.id === id);
+    if (e) e[key] = value;
+  } catch {}
+}
+
+async function deleteScanEntry(id) {
+  try {
+    await fetch(API + '/api/scan/list/' + id, { method: 'DELETE' });
+    await fetchScanList();
+  } catch {}
+}
+
+async function toggleScanLockout(id) {
+  try {
+    const r = await fetch(API + '/api/scan/lockout/' + id, { method: 'POST' });
+    if (r.ok) {
+      const updated = await r.json();
+      const e = scanEntries.find(x => x.id === id);
+      if (e) e.locked_out = updated.locked_out;
+      renderScanListEditor();
+    }
+  } catch {}
+}
+
+async function saveScanConfig() {
+  scanConfig.squelch = parseFloat(document.getElementById('scan-squelch').value);
+  scanConfig.dwell = parseFloat(document.getElementById('scan-dwell').value);
+  scanConfig.hysteresis = parseFloat(document.getElementById('scan-hysteresis').value);
+  scanConfig.settle = parseFloat(document.getElementById('scan-settle').value);
+  try {
+    await fetch(API + '/api/scan/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(scanConfig)
+    });
+  } catch {}
+}
+
+async function toggleScan() {
+  if (scanActive) {
+    try { await fetch(API + '/api/scan/stop', { method: 'POST' }); } catch {}
+    setScanUI(false);
+  } else {
+    if (scanEntries.length === 0) {
+      showToast('No channels saved \u2014 click + CH to add frequencies first');
+      return;
+    }
+    try {
+      const r = await fetch(API + '/api/scan/start', { method: 'POST' });
+      if (r.ok) setScanUI(true);
+      else {
+        const d = await r.json();
+        if (d.error) alert(d.error);
+      }
+    } catch {}
+  }
+}
+
+async function skipScan() {
+  try { await fetch(API + '/api/scan/skip', { method: 'POST' }); } catch {}
+}
+
+function setScanUI(active) {
+  scanActive = active;
+  const btn = document.getElementById('btn-scan');
+  const skip = document.getElementById('btn-skip');
+  const ind = document.getElementById('scan-indicator');
+
+  if (active) {
+    btn.classList.add('scanning');
+    btn.innerHTML = '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg> Stop';
+    skip.style.display = '';
+    ind.style.display = '';
+    // Start polling scan status
+    if (scanPollTimer) clearInterval(scanPollTimer);
+    scanPollTimer = setInterval(pollScanStatus, 500);
+  } else {
+    btn.classList.remove('scanning', 'scan-hit');
+    btn.innerHTML = '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg> Scan';
+    skip.style.display = 'none';
+    ind.style.display = 'none';
+    scanCurrent = null;
+    if (scanPollTimer) { clearInterval(scanPollTimer); scanPollTimer = null; }
+  }
+}
+
+async function pollScanStatus() {
+  try {
+    const r = await fetch(API + '/api/scan/status');
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d.active) {
+      setScanUI(false);
+      return;
+    }
+    scanCurrent = d.entry;
+    const btn = document.getElementById('btn-scan');
+    const chLabel = document.getElementById('scan-ch-label');
+    const levelEl = document.getElementById('scan-level');
+
+    if (d.entry) {
+      chLabel.textContent = d.entry.label || ('CH' + (d.index + 1));
+      const mhz = (d.entry.frequency / 1e6).toFixed(4);
+      if (!freqEditing) {
+        document.getElementById('freq-display').innerHTML = mhz + '<span class="unit">MHz</span>';
+      }
+      if (d.entry.mode) {
+        document.getElementById('mode-select').value = d.entry.mode;
+      }
+    }
+    levelEl.textContent = d.signal_level > -120 ? d.signal_level.toFixed(0) + ' dB' : '\u2014';
+
+    if (d.dwelling) {
+      btn.classList.add('scan-hit');
+      btn.classList.remove('scanning');
+    } else {
+      btn.classList.remove('scan-hit');
+      btn.classList.add('scanning');
+    }
+  } catch {}
+}
+
+// Handle scan WS messages
+function handleScanMessage(msg) {
+  if (!msg._scan) return false;
+  switch (msg.action) {
+    case 'started':
+      setScanUI(true);
+      break;
+    case 'stopped':
+      setScanUI(false);
+      break;
+    case 'hit':
+      if (msg.entry) {
+        scanCurrent = msg.entry;
+        document.getElementById('scan-ch-label').textContent = msg.entry.label || '';
+      }
+      document.getElementById('btn-scan').classList.add('scan-hit');
+      document.getElementById('btn-scan').classList.remove('scanning');
+      break;
+    case 'resume':
+      document.getElementById('btn-scan').classList.remove('scan-hit');
+      document.getElementById('btn-scan').classList.add('scanning');
+      break;
+  }
+  return true;
+}
+
 /* ── Init ── */
 loadSettings();
 applySettings();
@@ -2395,7 +3066,13 @@ fetchStatus();
 fetchRecordings();
 connect();
 connectFFT();
+fetchScanList();
 animationLoop();
+
+// Check if scan was already running on page load
+fetch(API + '/api/scan/status').then(r => r.json()).then(d => {
+  if (d.active) setScanUI(true);
+}).catch(() => {});
 </script>
 </body>
 </html>
