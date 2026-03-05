@@ -1,0 +1,44 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database files (runtime)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+
+# Audio recordings (runtime)
+recordings/
+*.wav
+
+# Logs
+*.log
+
+# Config overrides (runtime)
+etc/

@@ -1,0 +1,166 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" fill="none">
+  <defs>
+    <linearGradient id="cardGlow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.04)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="400" rx="16" fill="#06060a"/>
+  <rect x="1" y="1" width="958" height="398" rx="15" fill="none" stroke="rgba(255,255,255,0.06)"/>
+
+  <!-- Title -->
+  <text x="480" y="32" text-anchor="middle" fill="#f0f0f5" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="700">Supported Protocols &amp; Capabilities</text>
+  <text x="480" y="50" text-anchor="middle" fill="#707088" font-family="Inter, system-ui, sans-serif" font-size="11">Seven demodulation modes with runtime hot-swap — no restart required</text>
+
+  <!-- ═══ Protocol Cards Row ═══ -->
+
+  <!-- TETRA -->
+  <rect x="24" y="70" width="124" height="140" rx="10" fill="#0c0c14" stroke="rgba(34,197,94,0.25)"/>
+  <rect x="24" y="70" width="124" height="32" rx="10" fill="rgba(34,197,94,0.06)"/>
+  <rect x="24" y="90" width="124" height="12" fill="rgba(34,197,94,0.06)"/>
+  <circle cx="48" cy="86" r="8" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>
+  <text x="48" y="90" text-anchor="middle" fill="#22c55e" font-family="monospace" font-size="9" font-weight="700">T</text>
+  <text x="65" y="90" fill="#22c55e" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="700">TETRA</text>
+  <text x="86" y="118" text-anchor="middle" fill="#b0b0c0" font-family="monospace" font-size="8">π/4-DQPSK</text>
+  <text x="86" y="132" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">25 kHz channels</text>
+  <text x="86" y="146" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">L2/L3 decode</text>
+  <text x="86" y="160" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">SDS · voice · ISSI</text>
+  <text x="86" y="174" text-anchor="middle" fill="#484860" font-family="monospace" font-size="7">GSSI · cell info</text>
+  <rect x="36" y="186" width="100" height="14" rx="3" fill="rgba(34,197,94,0.08)"/>
+  <text x="86" y="196" text-anchor="middle" fill="#22c55e" font-family="monospace" font-size="7" font-weight="600">Full decode chain</text>
+
+  <!-- DMR -->
+  <rect x="158" y="70" width="124" height="140" rx="10" fill="#0c0c14" stroke="rgba(59,130,246,0.25)"/>
+  <rect x="158" y="70" width="124" height="32" rx="10" fill="rgba(59,130,246,0.06)"/>
+  <rect x="158" y="90" width="124" height="12" fill="rgba(59,130,246,0.06)"/>
+  <circle cx="182" cy="86" r="8" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1"/>
+  <text x="182" y="90" text-anchor="middle" fill="#3b82f6" font-family="monospace" font-size="9" font-weight="700">D</text>
+  <text x="199" y="90" fill="#3b82f6" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="700">DMR</text>
+  <text x="220" y="118" text-anchor="middle" fill="#b0b0c0" font-family="monospace" font-size="8">4-level FSK</text>
+  <text x="220" y="132" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">12.5 kHz TDMA</text>
+  <text x="220" y="146" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">2 timeslots</text>
+  <text x="220" y="160" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">Tier II/III</text>
+  <text x="220" y="174" text-anchor="middle" fill="#484860" font-family="monospace" font-size="7">AMBE+2 voice</text>
+  <rect x="170" y="186" width="100" height="14" rx="3" fill="rgba(59,130,246,0.08)"/>
+  <text x="220" y="196" text-anchor="middle" fill="#3b82f6" font-family="monospace" font-size="7" font-weight="600">Demod + symbol</text>
+
+  <!-- P25 -->
+  <rect x="292" y="70" width="124" height="140" rx="10" fill="#0c0c14" stroke="rgba(139,92,246,0.25)"/>
+  <rect x="292" y="70" width="124" height="32" rx="10" fill="rgba(139,92,246,0.06)"/>
+  <rect x="292" y="90" width="124" height="12" fill="rgba(139,92,246,0.06)"/>
+  <circle cx="316" cy="86" r="8" fill="rgba(139,92,246,0.15)" stroke="#8b5cf6" stroke-width="1"/>
+  <text x="316" y="90" text-anchor="middle" fill="#8b5cf6" font-family="monospace" font-size="9" font-weight="700">P</text>
+  <text x="333" y="90" fill="#8b5cf6" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="700">P25</text>
+  <text x="354" y="118" text-anchor="middle" fill="#b0b0c0" font-family="monospace" font-size="8">C4FM / CQPSK</text>
+  <text x="354" y="132" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">Phase I &amp; II</text>
+  <text x="354" y="146" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">12.5 kHz</text>
+  <text x="354" y="160" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">IMBE / AMBE+2</text>
+  <text x="354" y="174" text-anchor="middle" fill="#484860" font-family="monospace" font-size="7">trunking support</text>
+  <rect x="304" y="186" width="100" height="14" rx="3" fill="rgba(139,92,246,0.08)"/>
+  <text x="354" y="196" text-anchor="middle" fill="#8b5cf6" font-family="monospace" font-size="7" font-weight="600">Demod + symbol</text>
+
+  <!-- NXDN -->
+  <rect x="426" y="70" width="124" height="140" rx="10" fill="#0c0c14" stroke="rgba(6,182,212,0.25)"/>
+  <rect x="426" y="70" width="124" height="32" rx="10" fill="rgba(6,182,212,0.06)"/>
+  <rect x="426" y="90" width="124" height="12" fill="rgba(6,182,212,0.06)"/>
+  <circle cx="450" cy="86" r="8" fill="rgba(6,182,212,0.15)" stroke="#06b6d4" stroke-width="1"/>
+  <text x="450" y="90" text-anchor="middle" fill="#06b6d4" font-family="monospace" font-size="9" font-weight="700">N</text>
+  <text x="467" y="90" fill="#06b6d4" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="700">NXDN</text>
+  <text x="488" y="118" text-anchor="middle" fill="#b0b0c0" font-family="monospace" font-size="8">4-level FSK</text>
+  <text x="488" y="132" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">6.25 / 12.5 kHz</text>
+  <text x="488" y="146" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">FDMA</text>
+  <text x="488" y="160" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">Kenwood · Icom</text>
+  <text x="488" y="174" text-anchor="middle" fill="#484860" font-family="monospace" font-size="7">AMBE+2 voice</text>
+  <rect x="438" y="186" width="100" height="14" rx="3" fill="rgba(6,182,212,0.08)"/>
+  <text x="488" y="196" text-anchor="middle" fill="#06b6d4" font-family="monospace" font-size="7" font-weight="600">Demod + symbol</text>
+
+  <!-- dPMR -->
+  <rect x="560" y="70" width="124" height="140" rx="10" fill="#0c0c14" stroke="rgba(245,158,11,0.25)"/>
+  <rect x="560" y="70" width="124" height="32" rx="10" fill="rgba(245,158,11,0.06)"/>
+  <rect x="560" y="90" width="124" height="12" fill="rgba(245,158,11,0.06)"/>
+  <circle cx="584" cy="86" r="8" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="1"/>
+  <text x="584" y="90" text-anchor="middle" fill="#f59e0b" font-family="monospace" font-size="8" font-weight="700">dP</text>
+  <text x="605" y="90" fill="#f59e0b" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="700">dPMR</text>
+  <text x="622" y="118" text-anchor="middle" fill="#b0b0c0" font-family="monospace" font-size="8">4-level FSK</text>
+  <text x="622" y="132" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">6.25 kHz FDMA</text>
+  <text x="622" y="146" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">Mode 1/2/3</text>
+  <text x="622" y="160" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">ETSI TS 102 658</text>
+  <text x="622" y="174" text-anchor="middle" fill="#484860" font-family="monospace" font-size="7">AMBE+2 voice</text>
+  <rect x="572" y="186" width="100" height="14" rx="3" fill="rgba(245,158,11,0.08)"/>
+  <text x="622" y="196" text-anchor="middle" fill="#f59e0b" font-family="monospace" font-size="7" font-weight="600">Demod + symbol</text>
+
+  <!-- Analog FM -->
+  <rect x="694" y="70" width="124" height="140" rx="10" fill="#0c0c14" stroke="rgba(244,63,94,0.25)"/>
+  <rect x="694" y="70" width="124" height="32" rx="10" fill="rgba(244,63,94,0.06)"/>
+  <rect x="694" y="90" width="124" height="12" fill="rgba(244,63,94,0.06)"/>
+  <circle cx="718" cy="86" r="8" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1"/>
+  <text x="718" y="90" text-anchor="middle" fill="#f43f5e" font-family="monospace" font-size="7" font-weight="700">FM</text>
+  <text x="743" y="90" fill="#f43f5e" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="700">Analog FM</text>
+  <text x="756" y="118" text-anchor="middle" fill="#b0b0c0" font-family="monospace" font-size="8">NBFM / WBFM</text>
+  <text x="756" y="132" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">±5 kHz deviation</text>
+  <text x="756" y="146" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">CTCSS / DCS</text>
+  <text x="756" y="160" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">direct audio out</text>
+  <text x="756" y="174" text-anchor="middle" fill="#484860" font-family="monospace" font-size="7">16 kHz PCM</text>
+  <rect x="706" y="186" width="100" height="14" rx="3" fill="rgba(244,63,94,0.08)"/>
+  <text x="756" y="196" text-anchor="middle" fill="#f43f5e" font-family="monospace" font-size="7" font-weight="600">Full audio</text>
+
+  <!-- Analog AM -->
+  <rect x="828" y="70" width="108" height="140" rx="10" fill="#0c0c14" stroke="rgba(176,176,192,0.2)"/>
+  <rect x="828" y="70" width="108" height="32" rx="10" fill="rgba(176,176,192,0.04)"/>
+  <rect x="828" y="90" width="108" height="12" fill="rgba(176,176,192,0.04)"/>
+  <circle cx="852" cy="86" r="8" fill="rgba(176,176,192,0.1)" stroke="#b0b0c0" stroke-width="1"/>
+  <text x="852" y="90" text-anchor="middle" fill="#b0b0c0" font-family="monospace" font-size="7" font-weight="700">AM</text>
+  <text x="876" y="90" fill="#b0b0c0" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="700">Analog AM</text>
+  <text x="882" y="118" text-anchor="middle" fill="#b0b0c0" font-family="monospace" font-size="8">Envelope det.</text>
+  <text x="882" y="132" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">Airband / HF</text>
+  <text x="882" y="146" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">direct audio out</text>
+  <text x="882" y="160" text-anchor="middle" fill="#707088" font-family="monospace" font-size="7">16 kHz PCM</text>
+  <text x="882" y="174" text-anchor="middle" fill="#484860" font-family="monospace" font-size="7">wideband capable</text>
+  <rect x="840" y="186" width="84" height="14" rx="3" fill="rgba(176,176,192,0.06)"/>
+  <text x="882" y="196" text-anchor="middle" fill="#b0b0c0" font-family="monospace" font-size="7" font-weight="600">Full audio</text>
+
+  <!-- ═══ Capability Cards Row ═══ -->
+
+  <!-- Scanner -->
+  <rect x="24" y="228" width="224" height="80" rx="10" fill="#0c0c14" stroke="rgba(245,158,11,0.3)"/>
+  <rect x="24" y="228" width="224" height="28" rx="10" fill="rgba(245,158,11,0.06)"/>
+  <rect x="24" y="244" width="224" height="12" fill="rgba(245,158,11,0.06)"/>
+  <text x="44" y="247" fill="#f59e0b" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="700">⟳ Frequency Scanner</text>
+  <text x="44" y="270" fill="#b0b0c0" font-family="monospace" font-size="8">Async scan engine with configurable channel list</text>
+  <text x="44" y="284" fill="#707088" font-family="monospace" font-size="8">Squelch-based lock · dwell timer · skip</text>
+  <text x="44" y="298" fill="#484860" font-family="monospace" font-size="8">Quick-save channels · JSON persist · WS broadcast</text>
+
+  <!-- Spectrum -->
+  <rect x="260" y="228" width="224" height="80" rx="10" fill="#0c0c14" stroke="rgba(34,197,94,0.3)"/>
+  <rect x="260" y="228" width="224" height="28" rx="10" fill="rgba(34,197,94,0.06)"/>
+  <rect x="260" y="244" width="224" height="12" fill="rgba(34,197,94,0.06)"/>
+  <text x="280" y="247" fill="#22c55e" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="700">📊 Live Spectrum &amp; Waterfall</text>
+  <text x="280" y="270" fill="#b0b0c0" font-family="monospace" font-size="8">256-pt FFT · Hamming window · 15 fps</text>
+  <text x="280" y="284" fill="#707088" font-family="monospace" font-size="8">Canvas-based spectrum + scrolling waterfall</text>
+  <text x="280" y="298" fill="#484860" font-family="monospace" font-size="8">Real-time via WebSocket binary frames</text>
+
+  <!-- Audio -->
+  <rect x="496" y="228" width="224" height="80" rx="10" fill="#0c0c14" stroke="rgba(6,182,212,0.3)"/>
+  <rect x="496" y="228" width="224" height="28" rx="10" fill="rgba(6,182,212,0.06)"/>
+  <rect x="496" y="244" width="224" height="12" fill="rgba(6,182,212,0.06)"/>
+  <text x="516" y="247" fill="#06b6d4" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="700">🔊 In-Browser Audio</text>
+  <text x="516" y="270" fill="#b0b0c0" font-family="monospace" font-size="8">16 kHz · 16-bit PCM via Web Audio API</text>
+  <text x="516" y="284" fill="#707088" font-family="monospace" font-size="8">Low-latency streaming · volume control</text>
+  <text x="516" y="298" fill="#484860" font-family="monospace" font-size="8">One-click recording to WAV</text>
+
+  <!-- Database / Events -->
+  <rect x="732" y="228" width="204" height="80" rx="10" fill="#0c0c14" stroke="rgba(139,92,246,0.3)"/>
+  <rect x="732" y="228" width="204" height="28" rx="10" fill="rgba(139,92,246,0.06)"/>
+  <rect x="732" y="244" width="204" height="12" fill="rgba(139,92,246,0.06)"/>
+  <text x="752" y="247" fill="#8b5cf6" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="700">💾 Event Database</text>
+  <text x="752" y="270" fill="#b0b0c0" font-family="monospace" font-size="8">SQLite + aiosqlite persistence</text>
+  <text x="752" y="284" fill="#707088" font-family="monospace" font-size="8">Registrations · calls · SDS messages</text>
+  <text x="752" y="298" fill="#484860" font-family="monospace" font-size="8">REST API with filtering &amp; pagination</text>
+
+  <!-- ═══ Bottom tagline ═══ -->
+  <rect x="24" y="326" width="912" height="56" rx="10" fill="#0c0c14" stroke="rgba(255,255,255,0.04)"/>
+  <text x="480" y="350" text-anchor="middle" fill="#f0f0f5" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600">Everything runs on a $80 Raspberry Pi 5 with a $25 RTL-SDR dongle</text>
+  <text x="480" y="370" text-anchor="middle" fill="#707088" font-family="Inter, system-ui, sans-serif" font-size="10">GNU Radio 3.10 · Python 3.13 · FastAPI · Single-file HTML dashboard · Zero external dependencies in the browser</text>
+</svg>
